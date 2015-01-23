@@ -120,6 +120,11 @@ keys = [
         ( Набережная, (
             strings "набережная",
             strings "наб"
+        ) ),
+
+        ( Спуск, (
+            strings "спуск",
+            many1 (satisfy (const False))
         ) )
 
     ]
