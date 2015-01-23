@@ -4,143 +4,122 @@
 -- • Смежные символьные компоненты, если их значения слиплись и не разделены 
 --    запятой или ключами. Например: "г. Москва 1-я Дубровская ул". Тут 
 --    программно просто невозможно различить границу между значениями 
---    компонент.
+--    компонент, если не иметь словаря городов/улиц.
 
 
-module Address.Symbol (symbolComp) where
+module Address.Symbol (prefix, postfix) where
 
 
 import Address.Utils
 import Address.Types
-import Address.Digit
+import qualified Address.Digit as D
 import Text.Parsec
 import Control.Applicative hiding (optional, (<|>), many)
 import Debug.Trace (trace)
 
 
-symbolComp = do
-    watch "symbol comp"
-    try город
-        <|> try посёлок
-        <|> try село
-        <|> try деревня
-        <|> try микрорайон
-        <|> try улица
-        <|> try шоссе
-        <|> try переулок
-        <|> try бульвар
-        <|> try проспект
-        <|>     набережная
-
-
-город      = combinations Город ключГорода
-посёлок    = combinations Посёлок ключПосёлка
-село       = combinations Село ключСела
-деревня    = combinations Деревня ключДеревни
-микрорайон = combinations Микрорайон ключМикрорайона
-улица      = combinations Улица ключУлицы
-шоссе      = combinations Шоссе ключШоссе
-переулок   = combinations Переулок ключПереулка
-бульвар    = combinations Бульвар ключБульвара
-проспект   = combinations Проспект ключПроспекта
-набережная = combinations Набережная ключНабережной
-
-
-combinations c key = do
-    watch $ "symbol comb " ++ (show $ c "")
-    try (prefix c key) <|> postfix c key
-
-prefix c key = do
+prefix = do
     watch "symbol prefix"
-    (try fullKey <|> shortKey) *> fmap c value
-        where fullKey  = fst key *> skipMany1 space
-              shortKey = snd key *> (char '.' *> skipMany space <|> skipMany1 space)
+    choice $ flip map keys $ \ (constr, key) ->
+        let fullKey  = fst key *> skipMany1 space
+            shortKey = snd key *> (char '.' *> skipMany space
+                               <|> skipMany1 space)
+        in do
+            watch $ "symbol test " ++ show (constr "")
+            (try fullKey <|> try shortKey)
+                *> fmap constr value
+                <* lookAhead sep
 
-postfix c key = do
+
+postfix = do
     watch "symbol postfix"
-    fmap c value <* skipMany1 space <* (try fullKey <|> shortKey)
-        where fullKey  = fst key
-              shortKey = snd key <* optional (string ".")
+    value <- value <* skipMany1 space
+    choice $ flip map keys $ \ (constr, key) ->
+        let fullKey  = fst key <* lookAhead sep
+            shortKey = snd key <* (char '.' <|> lookAhead sep)
+        in do
+            watch $ "symbol test " ++ show (constr "")
+            try fullKey <|> try shortKey
+            return (constr value)
 
 
---value = manyTill1 anyChar (trace "Symbol Value lookAhead" $ lookAhead eof)
+sep = space
+  <|> char ','
+  <|> char '.' -- Бывают адреса с точкой-разделителем
+  <|> eof *> return 'x'
+
+
 value = do
     watch "value"
     manyTill1 anyChar $ lookAhead $
-            try (many space <* eof)
-        <|> try (many space <* char ',')
-        <|> try (many1 space <* symbolKey)
-        <|> try (many space <* digitComp)
-    where symbolKey = try (keys ключГорода)
-                  <|> try (keys ключПосёлка)
-                  <|> try (keys ключСела)
-                  <|> try (keys ключДеревни)
-                  <|> try (keys ключМикрорайона)
-                  <|> try (keys ключУлицы)
-                  <|> try (keys ключШоссе)
-                  <|> try (keys ключПереулка)
-                  <|> try (keys ключБульвара)
-                  <|> try (keys ключПроспекта)
-                  <|>      keys ключНабережной
-          keys k = try (fst k <* sep)
-                   <|> (snd k <* (sep <|> char '.'))
+            try (many  space <* eof)
+        <|> try (many  space <* char ',')
+        <|> try (many1 space <* choice (map symbolKey keys))
+        <|> try (many  space <* (try D.prefix <|> try D.postfix))
+    where symbolKey (constr, key) = do
+              watch $ "symbolKey " ++ show (constr "")
+              try (fst key <* sep) <|> try (snd key <* (sep <|> char '.'))
           sep = space
             <|> char ','
             <|> eof *> return 'x'
 
 
-ключГорода = (
-        strings "город",
-        try (strings "гор") <|> strings "г"
-    )
+keys = [
 
-ключПосёлка = (
-        strings "пос" *> oneOf "ёе" *> strings "лок",
-        try (strings "пос") <|> strings "п"
-    )
+        ( Город, (
+            strings "город",
+            try (strings "гор") <|> strings "г"
+        ) ),
 
-ключСела = (
-        strings "село",
-        many1 (satisfy (const False))
-            -- Сокращение 'с' конфликтует со строением
-    )
+        ( Посёлок, (
+            strings "пос" *> oneOf "ёе" *> strings "лок",
+            try (strings "пос") <|> strings "п"
+        ) ),
 
-ключДеревни = (
-        strings "деревня",
-        many1 (satisfy (const False))
-    )
+        ( Село, (
+            strings "село",
+            many1 (satisfy (const False))
+                -- Сокращение 'с' конфликтует со строением
+        ) ),
 
-ключМикрорайона = (
-        strings "микрорайон",
-        strings "мкр"
-    )
+        ( Деревня, (
+            strings "деревня",
+            many1 (satisfy (const False))
+        ) ),
 
-ключУлицы = (
-        strings "улица",
-        strings "ул"
-    )
+        ( Микрорайон, (
+            strings "микрорайон",
+            strings "мкр"
+        ) ),
 
-ключШоссе = (
-        strings "шоссе",
-        strings "ш"
-    )
+        ( Улица, (
+            strings "улица",
+            strings "ул"
+        ) ),
 
-ключПереулка = (
-        strings "переулок",
-        strings "пер"
-    )
+        ( Шоссе, (
+            strings "шоссе",
+            strings "ш"
+        ) ),
 
-ключБульвара = (
-        strings "бульвар",
-        strings "б-р"
-    )
+        ( Переулок, (
+            strings "переулок",
+            strings "пер"
+        ) ),
 
-ключПроспекта = (
-        strings "проспект",
-        try (strings "пр-т") <|> strings "пр"
-    )
+        ( Бульвар, (
+            strings "бульвар",
+            strings "б-р"
+        ) ),
 
-ключНабережной = (
-        strings "набережная",
-        strings "наб"
-    )
+        ( Проспект, (
+            strings "проспект",
+            try (strings "пр-т") <|> strings "пр"
+        ) ),
+
+        ( Набережная, (
+            strings "набережная",
+            strings "наб"
+        ) )
+
+    ]

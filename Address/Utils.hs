@@ -35,4 +35,9 @@ manyTill1 p end = liftM2 (:) p (manyTill p end)
 --
 -- Обычный trace, который не связан с getInput, из-за своей ленивости не 
 -- покажет текст для каждой попытки разбора, так что пользуюсь этим.
-watch comment = getInput >>= \rest -> trace ('"':rest ++ "\"; " ++ comment) (return ())
+debug = False
+watch comment | not debug = return ()
+watch comment | debug =
+    getInput >>=
+    \rest -> trace (format rest) (return ())
+    where format rest = '"':rest ++ "\"; " ++ comment

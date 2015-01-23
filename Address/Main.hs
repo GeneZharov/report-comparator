@@ -2,21 +2,21 @@ module Address.Main where
 
 
 import Address.Types
-import Address.Digit
-import Address.Symbol
+import qualified Address.Digit as D
+import qualified Address.Symbol as S
 import Text.Parsec
 import Control.Applicative hiding (optional, (<|>), many)
 import Debug.Trace (trace)
 
 
-address = many space *>
-          component `sepBy` (optional (char ',') *> many space)
-          <* many space
-
-
-component = do
-    --getInput >>= (`trace` (return ()))
-    try digitComp <|> symbolComp
-
-
 parseAddr = parse address ""
+
+
+address = many space *> component `sepEndBy` sep <* eof
+    where sep = optional (char ',' <|> char '.') *> many space
+
+
+component = try D.prefix
+        <|> try S.prefix
+        <|> try D.postfix
+        <|>     S.postfix
