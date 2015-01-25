@@ -1,0 +1,73 @@
+module Main.Analysis where
+
+
+
+import Data.Set ((\\))
+import qualified Data.Set as Set
+import Text.EditDistance
+import Data.List (sortBy, find)
+import Data.Tuple (swap)
+import Text.Parsec.Error (ParseError)
+import Data.Maybe (fromJust, isNothing)
+import Data.Either (rights)
+
+import Address.Types (Component, isRoad, getRoad)
+
+
+
+-- Вычисляет расстояние Дамерау-Левенштейна до каждого слова и возвращает 
+-- минимальное расстояние.
+linearSearch :: String -> String -> Int
+linearSearch pattern str = minimum $ map (distance pattern) (words str)
+    where distance = restrictedDamerauLevenshteinDistance defaultEditCosts
+
+
+
+-- Формирует список не распарсенных адресов в группе
+notParsed :: [ (String, Either ParseError [Component]) ] -> [String]
+notParsed xs = map fst $ filter (isLeft . snd) xs
+    where isLeft (Left _) = True
+          isLeft _ = False
+
+
+
+-- Для распарсенных адресов первой группы, которым не нашлось пары во второй 
+-- группе, нахожу степень похожести на каждый из адресов второй группы.
+notMatched ::
+    [ (String, Either ParseError [Component]) ] ->
+    [ (String, Either ParseError [Component]) ] ->
+    [(
+        String, -- Адрес первой группы
+        Either String [(
+            String -- Один из адресов второй группы
+         ,  Int    -- Степень соответствия адресу первой группы
+         ,  Bool   -- Есть ли уже у этого адреса пара из первой группы
+        )]
+    )]
+notMatched xs ys =
+    let xs' = Set.fromList $ rights $ snd (unzip xs)
+        ys' = Set.fromList $ rights $ snd (unzip ys)
+        xs'' = map (\ (str, Right parsed) -> (str, parsed)) $ filter (isRight . snd) xs
+        intersection = Set.intersection xs' ys'
+            -- Адреса 1-й группы с парой во 2-й
+    in for
+        (Set.toList $ xs' \\ ys') -- Адреса 1-й группы без пары во 2-й
+        (\ x -> (,) (fromJust $ rlookup x xs'')
+           (let road = find isRoad x
+            in if isNothing road
+               then Left "В адресе не задана дорога"
+               else Right
+                   $ sortBy (\ (_,x,_) (_,y,_) -> compare x y)
+                   $ filter (\ (_,x,_) -> x < 3 )
+                   $ for ys (\ (yStr, y) ->
+                         ( yStr
+                         , linearSearch (getRoad $ fromJust road) yStr
+                         , either (const False) (`elem` (Set.toList intersection)) y
+                         )
+                   )
+           )
+        )
+    where rlookup x = lookup x . map swap
+          for       = flip map
+          isRight (Right _) = True
+          isRight _ = False
