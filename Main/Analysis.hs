@@ -33,6 +33,7 @@ notParsed xs = map fst $ filter (isLeft . snd) xs
 
 -- Для распарсенных адресов первой группы, которым не нашлось пары во второй 
 -- группе, нахожу степень похожести на каждый из адресов второй группы.
+
 notMatched ::
     [ (String, Either ParseError [Component]) ] ->
     [ (String, Either ParseError [Component]) ] ->
@@ -44,30 +45,47 @@ notMatched ::
          ,  Bool   -- Есть ли уже у этого адреса пара из первой группы
         )]
     )]
+
 notMatched xs ys =
-    let xs' = Set.fromList $ rights $ snd (unzip xs)
-        ys' = Set.fromList $ rights $ snd (unzip ys)
-        xs'' = map (\ (str, Right parsed) -> (str, parsed)) $ filter (isRight . snd) xs
-        intersection = Set.intersection xs' ys'
-            -- Адреса 1-й группы с парой во 2-й
+
+    let
+
+        -- Множества разобранных адресов.
+        -- С ними будет удобно работать комбинаторами из пакета Data.Set
+        toSet = Set.fromList . rights . snd . unzip
+        xSet  = toSet xs
+        ySet  = toSet ys
+
+        -- Ассоциативный список для поиска строки адреса первой группы по 
+        -- его распарсенной версии.
+        xs' = map ( \ (str, Right parsed) -> (str, parsed) )
+            $ filter (isRight . snd) xs
+
+        -- Адреса 1-й группы, которым есть пара во 2-й
+        intersection = Set.intersection xSet ySet
+
     in for
-        (Set.toList $ xs' \\ ys') -- Адреса 1-й группы без пары во 2-й
-        (\ x -> (,) (fromJust $ rlookup x xs'')
-           (let road = find isRoad x
-            in if isNothing road
-               then Left "В адресе не задана дорога"
-               else Right
+        (Set.toList $ xSet \\ ySet) -- Адреса 1-й группы без пары во 2-й
+        (\ x -> (,) (fromJust $ rlookup x xs')
+            (let road = find isRoad x
+             in if isNothing road
+                then Left "В адресе не задана дорога"
+                else Right
                    $ sortBy (\ (_,x,_) (_,y,_) -> compare x y)
                    $ filter (\ (_,x,_) -> x < 3 )
                    $ for ys (\ (yStr, y) ->
-                         ( yStr
-                         , linearSearch (getRoad $ fromJust road) yStr
-                         , either (const False) (`elem` (Set.toList intersection)) y
-                         )
+                       ( yStr
+                       , linearSearch (getRoad $ fromJust road) yStr
+                       , either
+                             (const False)
+                             (`elem` Set.toList intersection)
+                             y
+                       )
                    )
-           )
+            )
         )
-    where rlookup x = lookup x . map swap
-          for       = flip map
+
+    where for = flip map
+          rlookup x = lookup x . map swap
           isRight (Right _) = True
-          isRight _ = False
+          isRight _         = False
