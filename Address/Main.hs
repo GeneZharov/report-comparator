@@ -1,12 +1,13 @@
 module Address.Main where
 
 
-import Address.Types
-import qualified Address.Digit as D
-import qualified Address.Symbol as S
 import Text.Parsec
 import Control.Applicative hiding (optional, (<|>), many)
 import Debug.Trace (trace)
+
+import Address.Types
+import qualified Address.Digit as D
+import qualified Address.Symbol as S
 
 
 parseAddr = parse address ""

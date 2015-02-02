@@ -1,10 +1,11 @@
 -- Модуль для тестирования библиотеки
 
 
+import Text.Parsec
+
 import qualified Address.Digit as D
 import qualified Address.Symbol as S
 import Address.Main
-import Text.Parsec
 
 
 main = do

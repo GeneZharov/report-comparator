@@ -10,12 +10,13 @@
 module Address.Symbol (prefix, postfix) where
 
 
-import Address.Utils
-import Address.Types
-import qualified Address.Digit as D
 import Text.Parsec
 import Control.Applicative hiding (optional, (<|>), many)
 import Debug.Trace (trace)
+
+import Address.Utils
+import Address.Types
+import qualified Address.Digit as D
 
 
 prefix = do

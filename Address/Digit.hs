@@ -11,10 +11,11 @@
 module Address.Digit (prefix, postfix) where
 
 
-import Address.Utils
-import Address.Types
 import Text.Parsec
 import Control.Applicative hiding (optional, (<|>))
+
+import Address.Utils
+import Address.Types
 
 
 prefix = do
