@@ -10,69 +10,128 @@ import Main.Analysis (notParsed, notMatched)
 
 
 
-process builder notesFile photosDir = do
+-- Отрисовывает результат вычислений
+draw builder photosDir notesFile = do
 
+    -- Извлекаю адреса из файлов
+    --notes  <- extract fromNotes notesFile
+    --photos <- extract fromNotes notesFile
     notes  <- extract fromNotes  "/root/s/zdrav/csv/from-excel.csv"
     photos <- extract fromPhotos "/root/s/zdrav/отчёты/Фото Эпилепсия 09.2014"
 
-    --notes  <- extract fromNotes  notesFile
-    --photos <- extract fromPhotos photosDir
-
     -- Адреса, которые не удалось распарсить
+    drawNotParsed builder "photosNotParsed" $ notParsed notes
+    drawNotParsed builder "notesNotParsed"  $ notParsed photos
     --print $ notParsed notes
     --print $ notParsed photos
 
-    -- Адреса отчёта без пары
+    -- Адреса без пары
+    drawNotMatched builder "notesNotMatched"  $ notMatched notes photos
+    drawNotMatched builder "photosNotMatched" $ notMatched photos notes
     --print $ notMatched notes photos
     --print $ notMatched photos notes
 
-    -- Удаляю заглушки
-    photosNotParsed  <- builderGetObject builder castToAlignment "photosNotParsed"
-    --photosVP  <- builderGetObject builder castToViewport "photosVP"
-    --notesVP   <- builderGetObject builder castToViewport "notesVP"
-    --photosCap <- builderGetObject builder castToLabel "photosCap"
-    --notesCap  <- builderGetObject builder castToLabel "notesCap"
-    --containerRemove photosVP photosCap
-    --containerRemove notesVP notesCap
 
-    let model = notParsed notes
-    photosTable <- tableNew (length model) -- Количество строк
-                            2              -- Количество столбцов
-                            True           -- Homogeneous
-    tableSetRowSpacings photosTable 7
+
+
+-- Отрисовывает не распарсенные адреса. Принимает набор данных и идентификатор 
+-- виджета, в который вставлять результат.
+drawNotParsed builder containerID model = do
+
+    -- Создаю таблицу
+    table <- tableNew (length model) 2 True
+        -- Количество строк, столбцов, homogeneous
+    tableSetRowSpacings table 7
+
+    -- Наполняю таблицу строками
     forM_ (zip model [0..]) $ \ (addr, i) -> do
         addrLabel  <- labelNew Nothing
         errorLabel <- labelNew Nothing
-        labelSetMarkup addrLabel ("<big>" ++ addr ++ "</big>")
+        labelSetMarkup addrLabel $ "<big>" ++ addr ++ "</big>"
         labelSetMarkup errorLabel "<big>Error not implemented</big>"
-        labelSetSelectable addrLabel True
+        labelSetSelectable addrLabel  True
         labelSetSelectable errorLabel True
-        miscSetAlignment addrLabel 0 0.5
+        miscSetAlignment addrLabel  0 0.5
         miscSetAlignment errorLabel 0 0.5
-        tableAttach photosTable
-                    addrLabel
-                    0 -- Колонка слева
-                    1 -- Колонка справа
-                    i -- Строка сверху
-                    (i + 1) -- Колонка снизу
-                    [Fill] -- Horizontal resizing
-                    [] -- Vertical resizing
-                    20 0 -- padding горизонтальный и вертикальный
-        tableAttach photosTable
-                    errorLabel
-                    1 -- Колонка слева
-                    2 -- Колонка справа
-                    i -- Строка сверху
-                    (i + 1) -- Колонка снизу
-                    [Fill] -- Horizontal resizing
-                    [] -- Vertical resizing
-                    20 0 -- padding горизонтальный и вертикальный
-    containerAdd photosNotParsed photosTable
-    widgetShowAll photosNotParsed
+        tableAttach table addrLabel
+                    0 1       -- Колонка слева/справа
+                    i (i+1)   -- Строка сверху/снизу
+                    [Fill] [] -- Horizontal/vertical resizing
+                    20 0      -- padding горизонтальный/вертикальный
+        tableAttach table errorLabel
+                    1 2       -- Колонка слева/справа
+                    i (i+1)   -- Строка сверху / снизу
+                    [Fill] [] -- Horizontal/vertical resizing
+                    20 0      -- padding горизонтальный и вертикальный
+
+    -- Подставляю таблицу в контейнер и показываю результат
+    alignment <- builderGetObject builder castToAlignment containerID
+    containerAdd alignment table
+    widgetShowAll table
 
 
 
-main :: IO ()
+-- Отрисовывает адреса без пары. Принимает набор данных и идентификатор 
+-- виджета, в который вставлять результат.
+drawNotMatched builder containerID model = do
+
+    -- Создаю таблицу для адресов без пар
+    table <- tableNew (length model) 2 True
+        -- Количество строк, столбцов, homogeneous
+    tableSetRowSpacings table 7
+
+    -- Генерю строки с адресами, которым не нашлось пары
+    forM_ (zip model [0..]) $ \ ((addr, options), i) -> do
+
+        leftLabel <- genLabel addr
+        tableAttach table leftLabel
+                    0 1       -- Колонка слева/справа
+                    i (i+1)   -- Строка сверху/снизу
+                    [Fill] [] -- Horizontal/vertical resizing
+                    20 0      -- padding горизонтальный/вертикальный
+
+        if isLeft options
+        then do
+            errorLabel <- genLabel (fromLeft options)
+            tableAttach table errorLabel
+                        1 2       -- Колонка слева/справа
+                        i (i+1)   -- Строка сверху / снизу
+                        [Fill] [] -- Horizontal/vertical resizing
+                        20 0      -- padding горизонтальный и вертикальный
+        else do
+            vbox <- vBoxNew True 7 -- homogeneous, spacing
+            forM_ (fromRight options) $ \ (addr, fit, matched) -> do
+                -- Генерю одну из альтернатив
+                hbox <- hBoxNew True 7
+                boxSetHomogeneous hbox False
+                genLabel addr >>= boxPackEndDefaults hbox
+                genLabel (show fit) >>= boxPackEndDefaults hbox
+                genLabel (show matched) >>= boxPackEndDefaults hbox
+                boxPackEndDefaults vbox hbox -- Добавляю hbox в конец vbox
+            tableAttach table vbox
+                        1 2       -- Колонка слева/справа
+                        i (i+1)   -- Строка сверху / снизу
+                        [Fill] [] -- Horizontal/vertical resizing
+                        20 0      -- padding горизонтальный и вертикальный
+
+    -- Подставляю таблицу в контейнер и показываю результат
+    alignment <- builderGetObject builder castToAlignment containerID
+    containerAdd alignment table
+    widgetShowAll table
+
+    where isLeft (Left _)  = True
+          isLeft (Right _) = False
+          fromLeft (Left x)   = x
+          fromRight (Right x) = x
+          genLabel text = do
+              label <- labelNew Nothing
+              miscSetAlignment label  0 0.5
+              labelSetSelectable label True
+              labelSetMarkup label $ "<big>" ++ text ++ "</big>"
+              return label
+
+
+
 main = do
 
     initGUI
@@ -81,23 +140,26 @@ main = do
     mainWindow <- builderGetObject builder castToWindow "window1"
     onDestroy mainWindow mainQuit
 
-    photosW <- builderGetObject builder castToFileChooserButton "photos"
-    notesW  <- builderGetObject builder castToFileChooserButton "notes"
-    submitW <- builderGetObject builder castToButton "submit"
-    alertW  <- builderGetObject builder castToMessageDialog "alert"
+    -- Alert с ошибкой
+    -- TODO: А не сделать ли функцию генерации таких алертов из любого текста?
+    alert <- builderGetObject builder castToMessageDialog "alert"
+    onResponse alert $ const (widgetHide alert) -- Сокрытие попапа по "Ok"
 
-    onResponse alertW $ const (widgetHide alertW) -- Сокрытие попапа по "Ok"
-    onClicked submitW $ do
-        process builder "" ""
+    photos <- builderGetObject builder castToFileChooserButton "photos"
+    notes  <- builderGetObject builder castToFileChooserButton "notes"
+    submit <- builderGetObject builder castToButton "submit"
+
+    onClicked submit $ do
+        draw builder "" ""
         {-
-        notesFile <- fileChooserGetFilename notesW
-        photosDir <- fileChooserGetFilename photosW
+        photosDir <- fileChooserGetFilename photos
+        notesFile <- fileChooserGetFilename notes
 
-        if any isNothing [notesFile, photosDir]
+        if any isNothing [photosDir, notesFile]
         if False
-        then widgetShow alertW
+        then widgetShow alert
         else let getFileName = decode . pack . fromJust
-             in  process builder (getFileName notesFile) (getFileName photosDir)
+             in  process builder (getFileName photosDir) (getFileName notesFile)
         -}
 
     widgetShowAll mainWindow
