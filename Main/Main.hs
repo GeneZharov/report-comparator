@@ -4,6 +4,7 @@ import Graphics.UI.Gtk.Builder
 import Data.Maybe (isNothing, fromJust)
 import Data.ByteString.Char8 (pack)
 import Codec.Binary.UTF8.Light (decode)
+import Debug.Trace (trace)
 
 import Main.Extraction (extract, fromNotes, fromPhotos)
 import Main.Analysis (notParsed, notMatched)
@@ -16,12 +17,12 @@ draw builder photosDir notesFile = do
     -- Извлекаю адреса из файлов
     --notes  <- extract fromNotes notesFile
     --photos <- extract fromNotes notesFile
-    notes  <- extract fromNotes  "/root/s/zdrav/csv/from-excel.csv"
-    photos <- extract fromPhotos "/root/s/zdrav/отчёты/Фото Эпилепсия 09.2014"
+    notes  <- extract fromNotes  "./samples/from-excel.csv"
+    photos <- extract fromPhotos "./samples/epil"
 
     -- Адреса, которые не удалось распарсить
-    drawNotParsed builder "photosNotParsed" $ notParsed notes
     drawNotParsed builder "notesNotParsed"  $ notParsed photos
+    drawNotParsed builder "photosNotParsed" $ notParsed notes
     --print $ notParsed notes
     --print $ notParsed photos
 
@@ -30,7 +31,6 @@ draw builder photosDir notesFile = do
     drawNotMatched builder "photosNotMatched" $ notMatched photos notes
     --print $ notMatched notes photos
     --print $ notMatched photos notes
-
 
 
 
@@ -66,6 +66,7 @@ drawNotParsed builder containerID model = do
 
     -- Подставляю таблицу в контейнер и показываю результат
     alignment <- builderGetObject builder castToAlignment containerID
+    containerGetChildren alignment >>= mapM_ widgetDestroy
     containerAdd alignment table
     widgetShowAll table
 
@@ -116,6 +117,7 @@ drawNotMatched builder containerID model = do
 
     -- Подставляю таблицу в контейнер и показываю результат
     alignment <- builderGetObject builder castToAlignment containerID
+    containerGetChildren alignment >>= mapM_ widgetDestroy
     containerAdd alignment table
     widgetShowAll table
 
