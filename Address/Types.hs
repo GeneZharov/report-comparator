@@ -29,6 +29,7 @@ data Component =
     | Проспект String
     | Набережная String
     | Спуск String
+    | Тупик String
 
     -- Digital
     | Дом HouseNum

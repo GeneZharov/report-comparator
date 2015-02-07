@@ -16,10 +16,10 @@ import Main.Analysis (notParsed, notMatched)
 draw builder photosDir notesFile = do
 
     -- Извлекаю адреса из файлов
-    --photos <- extract fromNotes notesFile
-    --notes  <- extract fromNotes notesFile
-    photos <- extract fromPhotos "./samples/epil"
-    notes  <- extract fromNotes  "./samples/from-excel.csv"
+    photos <- extract fromNotes notesFile
+    notes  <- extract fromNotes notesFile
+    --photos <- extract fromPhotos "./samples/epil"
+    --notes  <- extract fromNotes  "./samples/from-excel.csv"
 
     -- Адреса, которые не удалось распарсить
     drawNotParsed builder "photosNotParsed" $ notParsed photos
@@ -155,17 +155,15 @@ main = do
     submit <- builderGetObject builder castToButton "submit"
 
     onClicked submit $ do
-        draw builder "" ""
-        {-
+        --draw builder "" ""
+
         photosDir <- fileChooserGetFilename photos
         notesFile <- fileChooserGetFilename notes
 
         if any isNothing [photosDir, notesFile]
-        if False
         then widgetShow alert
         else let getFileName = decode . pack . fromJust
-             in  process builder (getFileName photosDir) (getFileName notesFile)
-        -}
+             in  draw builder (getFileName photosDir) (getFileName notesFile)
 
     widgetShowAll mainWindow
     mainGUI

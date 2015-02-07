@@ -126,6 +126,11 @@ keys = [
         ( Спуск, (
             strings "спуск",
             many1 (satisfy (const False))
+        ) ),
+
+        ( Тупик, (
+            strings "тупик",
+            many1 (satisfy (const False))
         ) )
 
     ]
