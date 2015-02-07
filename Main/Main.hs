@@ -4,6 +4,7 @@ import Graphics.UI.Gtk.Builder
 import Data.Maybe (isNothing, fromJust)
 import Data.ByteString.Char8 (pack)
 import Codec.Binary.UTF8.Light (decode)
+import Data.List (sortBy)
 import Debug.Trace (trace)
 
 import Main.Extraction (extract, fromNotes, fromPhotos)
@@ -15,20 +16,20 @@ import Main.Analysis (notParsed, notMatched)
 draw builder photosDir notesFile = do
 
     -- Извлекаю адреса из файлов
-    --notes  <- extract fromNotes notesFile
     --photos <- extract fromNotes notesFile
-    notes  <- extract fromNotes  "./samples/from-excel.csv"
+    --notes  <- extract fromNotes notesFile
     photos <- extract fromPhotos "./samples/epil"
+    notes  <- extract fromNotes  "./samples/from-excel.csv"
 
     -- Адреса, которые не удалось распарсить
-    drawNotParsed builder "notesNotParsed"  $ notParsed photos
-    drawNotParsed builder "photosNotParsed" $ notParsed notes
-    --print $ notParsed notes
+    drawNotParsed builder "photosNotParsed" $ notParsed photos
+    drawNotParsed builder "notesNotParsed"  $ notParsed notes
     --print $ notParsed photos
+    --print $ notParsed notes
 
     -- Адреса без пары
-    drawNotMatched builder "notesNotMatched"  $ notMatched notes photos
     drawNotMatched builder "photosNotMatched" $ notMatched photos notes
+    drawNotMatched builder "notesNotMatched"  $ notMatched notes photos
     --print $ notMatched notes photos
     --print $ notMatched photos notes
 
@@ -39,30 +40,16 @@ draw builder photosDir notesFile = do
 drawNotParsed builder containerID model = do
 
     -- Создаю таблицу
-    table <- tableNew (length model) 2 True
+    table <- tableNew (length model) 2 False
         -- Количество строк, столбцов, homogeneous
     tableSetRowSpacings table 7
 
     -- Наполняю таблицу строками
     forM_ (zip model [0..]) $ \ (addr, i) -> do
-        addrLabel  <- labelNew Nothing
-        errorLabel <- labelNew Nothing
-        labelSetMarkup addrLabel $ "<big>" ++ addr ++ "</big>"
-        labelSetMarkup errorLabel "<big>Error not implemented</big>"
-        labelSetSelectable addrLabel  True
-        labelSetSelectable errorLabel True
-        miscSetAlignment addrLabel  0 0.5
-        miscSetAlignment errorLabel 0 0.5
-        tableAttach table addrLabel
-                    0 1       -- Колонка слева/справа
-                    i (i+1)   -- Строка сверху/снизу
-                    [Fill] [] -- Horizontal/vertical resizing
-                    20 0      -- padding горизонтальный/вертикальный
-        tableAttach table errorLabel
-                    1 2       -- Колонка слева/справа
-                    i (i+1)   -- Строка сверху / снизу
-                    [Fill] [] -- Horizontal/vertical resizing
-                    20 0      -- padding горизонтальный и вертикальный
+        label <- genLabel addr
+        labelSetSelectable label True
+        addCell table 0 i label
+        --genLabel "Error not implemented" >>= addCell table 1 i
 
     -- Подставляю таблицу в контейнер и показываю результат
     alignment <- builderGetObject builder castToAlignment containerID
@@ -77,43 +64,48 @@ drawNotParsed builder containerID model = do
 drawNotMatched builder containerID model = do
 
     -- Создаю таблицу для адресов без пар
-    table <- tableNew (length model) 2 True
-        -- Количество строк, столбцов, homogeneous
+    table <- tableNew (length model) 2 False -- строк, столбцов, homogeneous
     tableSetRowSpacings table 7
 
+    genLabel (header "Без пары из текущей группы адресов") >>= addCell table 0 0
+    genLabel (header "Похожие из другой группы адресов" )  >>= addCell table 1 0
+
     -- Генерю строки с адресами, которым не нашлось пары
-    forM_ (zip model [0..]) $ \ ((addr, options), i) -> do
+    forM_ (zip model [1..]) $ \ ((addr, options), i) -> do
 
+        -- Линия-разделитель
+        separator <- hSeparatorNew
+        tableAttach table separator 0 2 (2*i) (2*i+1) [Fill] [] 0 0
+
+        -- Строка адреса без пары
         leftLabel <- genLabel addr
-        tableAttach table leftLabel
-                    0 1       -- Колонка слева/справа
-                    i (i+1)   -- Строка сверху/снизу
-                    [Fill] [] -- Horizontal/vertical resizing
-                    20 0      -- padding горизонтальный/вертикальный
+        labelSetSelectable leftLabel True
+        addCell table 0 (i*2+1) leftLabel
 
+        -- Похожие адреса
         if isLeft options
         then do
             errorLabel <- genLabel (fromLeft options)
-            tableAttach table errorLabel
-                        1 2       -- Колонка слева/справа
-                        i (i+1)   -- Строка сверху / снизу
-                        [Fill] [] -- Horizontal/vertical resizing
-                        20 0      -- padding горизонтальный и вертикальный
+            labelSetSelectable errorLabel True
+            addCell table 1 (i*2) errorLabel
         else do
             vbox <- vBoxNew True 7 -- homogeneous, spacing
-            forM_ (fromRight options) $ \ (addr, fit, matched) -> do
+            let sorted = flip sortBy (fromRight options)
+                         $ \ (_, a, _) (_, b, _) -> compare a b
+                         -- Сортирую по количеству ошибок
+            forM_ sorted $ \ (addr, fit, matched) -> do
                 -- Генерю одну из альтернатив
-                hbox <- hBoxNew True 7
+                hbox <- hBoxNew False 7
                 boxSetHomogeneous hbox False
-                genLabel addr >>= boxPackEndDefaults hbox
-                genLabel (show fit) >>= boxPackEndDefaults hbox
-                genLabel (show matched) >>= boxPackEndDefaults hbox
+                if matched
+                    then genLabel "— уже имеет пару"
+                     >>= boxPackEndDefaults hbox
+                    else return ()
+                alt <- genLabel addr
+                labelSetSelectable alt True
+                boxPackEndDefaults hbox alt
                 boxPackEndDefaults vbox hbox -- Добавляю hbox в конец vbox
-            tableAttach table vbox
-                        1 2       -- Колонка слева/справа
-                        i (i+1)   -- Строка сверху / снизу
-                        [Fill] [] -- Horizontal/vertical resizing
-                        20 0      -- padding горизонтальный и вертикальный
+            addCell table 1 (i*2+1) vbox
 
     -- Подставляю таблицу в контейнер и показываю результат
     alignment <- builderGetObject builder castToAlignment containerID
@@ -125,12 +117,23 @@ drawNotMatched builder containerID model = do
           isLeft (Right _) = False
           fromLeft (Left x)   = x
           fromRight (Right x) = x
-          genLabel text = do
-              label <- labelNew Nothing
-              miscSetAlignment label  0 0.5
-              labelSetSelectable label True
-              labelSetMarkup label $ "<big>" ++ text ++ "</big>"
-              return label
+          header text = "<span fgcolor=\"#6D6D6D\" \
+                             \ style=\"italic\" \
+                        \>" ++ text ++ "</span>"
+
+
+
+genLabel text = do
+    label <- labelNew Nothing
+    miscSetAlignment label  0 0
+    labelSetMarkup label $ "<big>" ++ text ++ "</big>"
+    return label
+
+addCell table x y widget = tableAttach table widget
+    x (x+1)       -- Колонка слева/справа
+    y (y+1)       -- Строка сверху/снизу
+    [Fill] [Fill] -- Horizontal/vertical resizing
+    20 0          -- padding горизонтальный/вертикальный
 
 
 
