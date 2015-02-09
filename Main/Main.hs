@@ -16,7 +16,7 @@ import Main.Analysis (notParsed, notMatched)
 draw builder photosDir notesFile = do
 
     -- Извлекаю адреса из файлов
-    photos <- extract fromNotes notesFile
+    photos <- extract fromPhotos photosDir
     notes  <- extract fromNotes notesFile
     --photos <- extract fromPhotos "./samples/epil"
     --notes  <- extract fromNotes  "./samples/from-excel.csv"
@@ -24,8 +24,8 @@ draw builder photosDir notesFile = do
     -- Адреса, которые не удалось распарсить
     drawNotParsed builder "photosNotParsed" $ notParsed photos
     drawNotParsed builder "notesNotParsed"  $ notParsed notes
-    --print $ notParsed photos
-    --print $ notParsed notes
+    print $ notParsed photos
+    print $ notParsed notes
 
     -- Адреса без пары
     drawNotMatched builder "photosNotMatched" $ notMatched photos notes
@@ -155,10 +155,11 @@ main = do
     submit <- builderGetObject builder castToButton "submit"
 
     onClicked submit $ do
-        --draw builder "" ""
 
-        photosDir <- fileChooserGetFilename photos
-        notesFile <- fileChooserGetFilename notes
+        --photosDir <- fileChooserGetFilename photos
+        --notesFile <- fileChooserGetFilename notes
+        let photosDir = Just "./samples/spb"
+        let notesFile = Just "./samples/spb.csv"
 
         if any isNothing [photosDir, notesFile]
         then widgetShow alert

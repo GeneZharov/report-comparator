@@ -44,6 +44,3 @@ main = do
     --parseTest address "Ленинский пр, д.10, к.5"
     --parseTest address "ул. 1-я Дубровская, д.4"
     --parseTest address "Алябьева ул., д.7/33, к.1"
-
-    print $ parseAddr "ул. Таганская, д.1, к.1"
-    print $ parseAddr "дом 1, ул. Таганская, корпус 1"

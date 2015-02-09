@@ -39,4 +39,5 @@ executable addr
     bytestring >= 0.9,
     utf8-light >= 0.4,
     edit-distance >= 0.2,
-    regex-pcre >= 0.94
+    regex-pcre >= 0.94,
+    unix >= 2.5

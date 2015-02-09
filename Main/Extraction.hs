@@ -8,6 +8,8 @@ import System.FilePath (takeBaseName)
 import System.Directory (getDirectoryContents)
 import Text.Parsec.Error (ParseError)
 import System.IO
+import System.Posix.Files (isDirectory, getFileStatus)
+import Debug.Trace (trace)
 
 import Address.Main
 import Address.Types
@@ -30,9 +32,15 @@ fromNotes file = liftM parseCSV (readFile' utf8 file)
 
 -- Извлекает адреса из имён файлов фотографий в заданном каталоге
 fromPhotos :: String -> IO [String]
-fromPhotos dir = liftM
-    (map takeBaseName . filter (`notElem` [ ".", ".." ]))
-    (getDirectoryContents dir)
+fromPhotos dir =
+    liftM (filter (`notElem` [ ".", ".." ])) (getDirectoryContents dir)
+    >>= mapM ( \ f -> do
+                 status <- getFileStatus (dir ++ "/" ++ f)
+                 return $ if isDirectory status
+                          then f
+                          else (takeBaseName f)
+             )
+
 
 
 -- Извлекает адреса с помощью пользовательской функции из заданного файла и 
