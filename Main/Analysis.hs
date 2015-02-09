@@ -23,6 +23,16 @@ linearSearch pattern str = minimum $ map (distance pattern) (words str)
 
 
 
+-- Количество адресов с парой
+matchedCount ::
+    [ (String, Either ParseError [Component]) ] ->
+    [ (String, Either ParseError [Component]) ] ->
+    Int
+matchedCount xs ys = Set.size $ Set.intersection (toSet xs) (toSet ys)
+    where toSet = Set.fromList . rights . snd . unzip
+
+
+
 -- Формирует список не распарсенных адресов в группе
 notParsed :: [ (String, Either ParseError [Component]) ] -> [String]
 notParsed xs = map fst $ filter (isLeft . snd) xs

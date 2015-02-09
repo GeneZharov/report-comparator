@@ -8,7 +8,7 @@ import Data.List (sortBy)
 import Debug.Trace (trace)
 
 import Main.Extraction (extract, fromNotes, fromPhotos)
-import Main.Analysis (notParsed, notMatched)
+import Main.Analysis (matchedCount, notParsed, notMatched)
 
 
 
@@ -21,17 +21,29 @@ draw builder photosDir notesFile = do
     --photos <- extract fromPhotos "./samples/epil"
     --notes  <- extract fromNotes  "./samples/from-excel.csv"
 
+    -- Количество адресов с парой
+    let matched = matchedCount photos notes
+    drawMatched builder "photosMatched" matched
+    drawMatched builder "notesMatched" matched
+    --print matched
+
     -- Адреса, которые не удалось распарсить
     drawNotParsed builder "photosNotParsed" $ notParsed photos
     drawNotParsed builder "notesNotParsed"  $ notParsed notes
-    print $ notParsed photos
-    print $ notParsed notes
+    --print $ notParsed photos
+    --print $ notParsed notes
 
     -- Адреса без пары
     drawNotMatched builder "photosNotMatched" $ notMatched photos notes
     drawNotMatched builder "notesNotMatched"  $ notMatched notes photos
     --print $ notMatched notes photos
     --print $ notMatched photos notes
+
+
+
+drawMatched builder labelID count = do
+    label <- builderGetObject builder castToLabel labelID
+    labelSetMarkup label $ "<big>" ++ show count ++ "</big>"
 
 
 
@@ -66,6 +78,7 @@ drawNotMatched builder containerID model = do
     -- Создаю таблицу для адресов без пар
     table <- tableNew (length model) 2 False -- строк, столбцов, homogeneous
     tableSetRowSpacings table 7
+    tableSetColSpacings table 40
 
     genLabel (header "Без пары из текущей группы адресов") >>= addCell table 0 0
     genLabel (header "Похожие из другой группы адресов" )  >>= addCell table 1 0
@@ -133,7 +146,7 @@ addCell table x y widget = tableAttach table widget
     x (x+1)       -- Колонка слева/справа
     y (y+1)       -- Строка сверху/снизу
     [Fill] [Fill] -- Horizontal/vertical resizing
-    20 0          -- padding горизонтальный/вертикальный
+    0 0           -- padding горизонтальный/вертикальный
 
 
 

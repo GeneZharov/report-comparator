@@ -45,4 +45,4 @@ main = do
     --parseTest address "ул. 1-я Дубровская, д.4"
     --parseTest address "Алябьева ул., д.7/33, к.1"
 
-    parseTest address "МО, ул. 1-я Дубровская"
+    --parseTest address "МО, ул. 1-я Дубровская"
