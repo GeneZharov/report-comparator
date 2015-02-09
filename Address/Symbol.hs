@@ -7,7 +7,7 @@
 --    компонент, если не иметь словаря городов/улиц.
 
 
-module Address.Symbol (prefix, postfix) where
+module Address.Symbol (constant, prefix, postfix) where
 
 
 import Text.Parsec
@@ -17,6 +17,10 @@ import Debug.Trace (trace)
 import Address.Utils
 import Address.Types
 import qualified Address.Digit as D
+
+
+constant = strings "мо" *> return (Область "Московская")
+    -- Фрагменты без ключей, но легко узнаваемые
 
 
 prefix = do

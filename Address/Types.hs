@@ -12,8 +12,10 @@ module Address.Types
 
 data Component =
 
+    Область String
+
     -- Settlement
-      Город String
+    | Город String
     | Посёлок String
     | Село String
     | Деревня String

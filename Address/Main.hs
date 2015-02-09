@@ -17,7 +17,8 @@ address = many space *> component `sepEndBy` sep <* eof
     where sep = optional (char ',' <|> char '.') *> many space
 
 
-component = try D.prefix
+component = S.constant
+        <|> try D.prefix
         <|> try S.prefix
         <|> try D.postfix
         <|>     S.postfix
