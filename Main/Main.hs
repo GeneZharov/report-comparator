@@ -61,6 +61,14 @@ draw window builder (Right photos) (Right notes) = do
     --print $ notMatched notes photos
     --print $ notMatched photos notes
 
+    when (matched == 0) $ alert window
+        "Нет ни одного совпадения адресов.\n\n\
+        \Возможно отчёты полностью отличаются \
+        \или из них неверно извлечены адреса:\n\n\
+        \• Возможно в таблице адреса лежат не в 3-й колонке;\n\n\
+        \• Возможно внутри каталога фотографий находится лишний уровень \
+        \вложенности вместо просто набора файлов/каталогов с адресами в именах;"
+
 
 
 drawMatched builder labelID count = do
@@ -190,7 +198,7 @@ main = do
         --photosDir <- fileChooserGetFilename photos
         --notesFile <- fileChooserGetFilename notes
         let photosDir = Just "./samples/spb"
-        let notesFile = Just "./samples/spb-syntax-error.csv"
+        let notesFile = Just "./samples/spb-wrong-column.csv"
 
         if any isNothing [photosDir, notesFile]
         then alert mainWindow
