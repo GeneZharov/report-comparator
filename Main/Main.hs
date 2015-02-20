@@ -5,21 +5,43 @@ import Data.Maybe (isNothing, fromJust)
 import Data.ByteString.Char8 (pack)
 import Codec.Binary.UTF8.Light (decode)
 import Data.List (sortBy)
-import Debug.Trace (trace)
+import Text.Parsec.Error (ParseError)
+import Control.Exception (try)
+import System.IO.Error
+import Data.List (isInfixOf)
 
 import Main.Extraction (extract, fromNotes, fromPhotos)
 import Main.Analysis (matchedCount, notParsed, notMatched)
+import Address.Types
 
 
 
--- Отрисовывает результат вычислений
-draw builder photosDir notesFile = do
+-- Создаёт попап с сообщением об ошибке
+alert parentWindow msg = do
+    dialog <- messageDialogNew parentWindow [] MessageError ButtonsOk msg
+    onResponse dialog $ const (widgetHide dialog) -- Сокрытие по "Ok"
+    widgetShow dialog
 
-    -- Извлекаю адреса из файлов
-    photos <- extract fromPhotos photosDir
-    notes  <- extract fromNotes notesFile
-    --photos <- extract fromPhotos "./samples/epil"
-    --notes  <- extract fromNotes  "./samples/from-excel.csv"
+
+
+-- draw отрисовывает результат вычислений
+
+draw :: Window
+     -> Builder
+     -> Either IOError [ (String, Either ParseError [Component]) ]
+     -> Either IOError [ (String, Either ParseError [Component]) ]
+     -> IO ()
+
+draw window _ (Left e) _ = print "perr"
+
+draw window _ _ (Left e) = alert (Just window) $
+    if encErr `isInfixOf` show e
+    then "Неверная кодировка файла: " ++ fromJust (ioeGetFileName e)
+      ++ "\nОжидается кодировка UTF-8"
+    else "Ошибка разбора файла: " ++ show e
+    where encErr = "hGetContents: invalid argument (invalid byte sequence)"
+
+draw window builder (Right photos) (Right notes) = do
 
     -- Количество адресов с парой
     let matched = matchedCount photos notes
@@ -172,12 +194,14 @@ main = do
         --photosDir <- fileChooserGetFilename photos
         --notesFile <- fileChooserGetFilename notes
         let photosDir = Just "./samples/spb"
-        let notesFile = Just "./samples/spb.csv"
+        let notesFile = Just "./samples/spb-1251.csv"
 
         if any isNothing [photosDir, notesFile]
         then widgetShow alert
         else let getFileName = decode . pack . fromJust
-             in  draw builder (getFileName photosDir) (getFileName notesFile)
+             in do photos <- try (extract fromPhotos $ getFileName photosDir)
+                   notes  <- try (extract fromNotes  $ getFileName notesFile)
+                   draw mainWindow builder photos notes
 
     widgetShowAll mainWindow
     mainGUI

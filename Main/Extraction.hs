@@ -24,9 +24,11 @@ fromNotes file = liftM parseCSV (readFile' utf8 file)
               \l -> if head l =~ "\\d+" -- Если в первой ячейке номер строки,
                     then [l!!2]         -- то адрес лежит в 3-й ячейке.
                     else []             -- Иначе строка не содержит адрес.
-          readFile' enc name = openFile name ReadMode
-                           >>= (flip hSetEncoding $ enc) >&&> hGetContents
-              where (>&&>) = liftM2 (>>)
+          readFile' :: TextEncoding -> String -> IO String
+          readFile' enc name = do
+              h <- openFile name ReadMode
+              hSetEncoding h enc
+              hGetContents h
 
 
 
