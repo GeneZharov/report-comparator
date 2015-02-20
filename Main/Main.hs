@@ -6,8 +6,8 @@ import Data.ByteString.Char8 (pack)
 import Codec.Binary.UTF8.Light (decode)
 import Data.List (sortBy)
 import Text.Parsec.Error (ParseError)
-import Control.Exception (try)
-import System.IO.Error
+import Control.Exception
+import System.IO.Error (ioeGetFileName)
 import Data.List (isInfixOf)
 
 import Main.Extraction (extract, fromNotes, fromPhotos)
@@ -17,8 +17,9 @@ import Address.Types
 
 
 -- Создаёт попап с сообщением об ошибке
+alert :: Window -> String -> IO ()
 alert parentWindow msg = do
-    dialog <- messageDialogNew parentWindow [] MessageError ButtonsOk msg
+    dialog <- messageDialogNew (Just parentWindow) [] MessageError ButtonsOk msg
     onResponse dialog $ const (widgetHide dialog) -- Сокрытие по "Ok"
     widgetShow dialog
 
@@ -32,13 +33,12 @@ draw :: Window
      -> Either IOError [ (String, Either ParseError [Component]) ]
      -> IO ()
 
-draw window _ (Left e) _ = print "perr"
-
-draw window _ _ (Left e) = alert (Just window) $
-    if encErr `isInfixOf` show e
-    then "Неверная кодировка файла: " ++ fromJust (ioeGetFileName e)
+draw window _ (Left photosErr) _ = alert window (show photosErr)
+draw window _ _ (Left notesErr) = alert window $
+    if encErr `isInfixOf` show notesErr
+    then "Неверная кодировка файла: " ++ fromJust (ioeGetFileName notesErr)
       ++ "\nОжидается кодировка UTF-8"
-    else "Ошибка разбора файла: " ++ show e
+    else "Ошибка разбора файла:\n" ++ show notesErr
     where encErr = "hGetContents: invalid argument (invalid byte sequence)"
 
 draw window builder (Right photos) (Right notes) = do
@@ -172,6 +172,7 @@ addCell table x y widget = tableAttach table widget
 
 
 
+main :: IO ()
 main = do
 
     initGUI
@@ -179,11 +180,6 @@ main = do
     builderAddFromFile builder "./Main/main.glade"
     mainWindow <- builderGetObject builder castToWindow "window1"
     onDestroy mainWindow mainQuit
-
-    -- Alert с ошибкой
-    -- TODO: А не сделать ли функцию генерации таких алертов из любого текста?
-    alert <- builderGetObject builder castToMessageDialog "alert"
-    onResponse alert $ const (widgetHide alert) -- Сокрытие попапа по "Ok"
 
     photos <- builderGetObject builder castToFileChooserButton "photos"
     notes  <- builderGetObject builder castToFileChooserButton "notes"
@@ -194,14 +190,17 @@ main = do
         --photosDir <- fileChooserGetFilename photos
         --notesFile <- fileChooserGetFilename notes
         let photosDir = Just "./samples/spb"
-        let notesFile = Just "./samples/spb-1251.csv"
+        let notesFile = Just "./samples/spb-syntax-error.csv"
 
         if any isNothing [photosDir, notesFile]
-        then widgetShow alert
+        then alert mainWindow
+                 "Нужно задать файл отчёта и каталог с фотографиями"
         else let getFileName = decode . pack . fromJust
              in do photos <- try (extract fromPhotos $ getFileName photosDir)
                    notes  <- try (extract fromNotes  $ getFileName notesFile)
                    draw mainWindow builder photos notes
+                       -- `catch` \ (e :: SomeException)
+                       --        -> alert mainWindow (show e)
 
     widgetShowAll mainWindow
     mainGUI

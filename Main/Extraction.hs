@@ -10,6 +10,8 @@ import Text.Parsec.Error (ParseError)
 import System.IO
 import System.Posix.Files (isDirectory, getFileStatus)
 import Debug.Trace (trace)
+import Control.Exception (throwIO)
+import System.IO.Error (userError)
 
 import Address.Main
 import Address.Types
@@ -19,7 +21,7 @@ import ParseCSV
 -- Извлекает адреса из таблицы отчёта в заданном файле
 fromNotes :: String -> IO [String]
 fromNotes file = liftM parseCSV (readFile' utf8 file)
-             >>= either (return . error . show) (return . pick)
+             >>= either (throwIO . userError . show) (return . pick)
     where pick lines = lines >>=
               \l -> if head l =~ "\\d+" -- Если в первой ячейке номер строки,
                     then [l!!2]         -- то адрес лежит в 3-й ячейке.
