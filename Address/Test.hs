@@ -6,6 +6,7 @@ import Text.Parsec
 import qualified Address.Digit as D
 import qualified Address.Symbol as S
 import Address.Main
+import Address.Types
 
 
 main = do
@@ -46,3 +47,7 @@ main = do
     --parseTest address "Алябьева ул., д.7/33, к.1"
 
     --parseTest address "МО, ул. 1-я Дубровская"
+
+    putStrLn $ format $ fromRight $ parseAddr "МО, ул. 1-я Дубровская, д.99"
+
+    where fromRight (Right x) = x

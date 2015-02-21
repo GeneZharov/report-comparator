@@ -9,6 +9,9 @@ import Text.Parsec.Error (ParseError)
 import Control.Exception
 import System.IO.Error (ioeGetFileName)
 import Data.List (isInfixOf)
+import Data.Char (chr)
+import Text.Regex.Posix ((=~))
+import Debug.Trace
 
 import Main.Extraction (extract, fromNotes, fromPhotos)
 import Main.Analysis (matchedCount, notParsed, notMatched)
@@ -22,6 +25,28 @@ alert parentWindow msg = do
     dialog <- messageDialogNew (Just parentWindow) [] MessageError ButtonsOk msg
     onResponse dialog $ const (widgetHide dialog) -- Сокрытие по "Ok"
     widgetShow dialog
+
+
+
+-- Приводит набор компонентов адреса к читаемой строке
+format :: [ Component ] -> String
+format = init . tail     -- Обрезаю фигурные скобки
+       . map newlines . toReadable . show
+    where newlines c | c == ',' = '\n'
+          newlines c | otherwise = c
+          -- Заменяет запятую на перенос строки
+
+
+
+-- Заменяет юникоды вида "\1077" в строках, которые создают функции вроде 
+-- print/show на читаемые символы.
+toReadable :: String -> String
+toReadable str = replace ( str =~ "\\\\([0-9]{4})" )
+    where replace :: (String, String, String, [String]) -> String
+          replace (before, [], [], []) = before
+          replace (before, matched, after, groups) =
+              let readable = chr $ read $ head groups
+              in before ++ [ readable ] ++ toReadable (after)
 
 
 
@@ -71,6 +96,7 @@ draw window builder (Right photos) (Right notes) = do
 
 
 
+drawMatched :: Builder -> String -> Int -> IO ()
 drawMatched builder labelID count = do
     label <- builderGetObject builder castToLabel labelID
     labelSetMarkup label $ "<big>" ++ show count ++ "</big>"
@@ -79,6 +105,9 @@ drawMatched builder labelID count = do
 
 -- Отрисовывает не распарсенные адреса. Принимает набор данных и идентификатор 
 -- виджета, в который вставлять результат.
+drawNotParsed :: Builder -> String
+              -> [ (String, Either ParseError [Component]) ]
+              -> IO ()
 drawNotParsed builder containerID model = do
 
     -- Создаю таблицу
@@ -88,7 +117,7 @@ drawNotParsed builder containerID model = do
 
     -- Наполняю таблицу строками
     forM_ (zip model [0..]) $ \ (addr, i) -> do
-        label <- genLabel addr
+        label <- genLabel (fst addr)
         labelSetSelectable label True
         addCell table 0 i label
         --genLabel "Error not implemented" >>= addCell table 1 i
@@ -103,6 +132,13 @@ drawNotParsed builder containerID model = do
 
 -- Отрисовывает адреса без пары. Принимает набор данных и идентификатор 
 -- виджета, в который вставлять результат.
+drawNotMatched :: Builder -> String
+               -> [(
+                      String,
+                      [Component],
+                      Either String [(String, Int, Bool)]
+                  )]
+               -> IO ()
 drawNotMatched builder containerID model = do
 
     -- Создаю таблицу для адресов без пар
@@ -114,7 +150,7 @@ drawNotMatched builder containerID model = do
     genLabel (header "Похожие из другой группы адресов" )  >>= addCell table 1 0
 
     -- Генерю строки с адресами, которым не нашлось пары
-    forM_ (zip model [1..]) $ \ ((addr, options), i) -> do
+    forM_ (zip model [1..]) $ \ ((addr, comps, options), i) -> do
 
         -- Линия-разделитель
         separator <- hSeparatorNew
@@ -122,7 +158,11 @@ drawNotMatched builder containerID model = do
 
         -- Строка адреса без пары
         leftLabel <- genLabel addr
-        labelSetSelectable leftLabel True
+        set leftLabel [
+            widgetTooltipText := Just (format comps)
+         , labelSelectable := True
+         ]
+        --labelSetSelectable leftLabel True
         addCell table 0 (i*2+1) leftLabel
 
         -- Похожие адреса

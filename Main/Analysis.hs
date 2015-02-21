@@ -34,8 +34,9 @@ matchedCount xs ys = Set.size $ Set.intersection (toSet xs) (toSet ys)
 
 
 -- Формирует список не распарсенных адресов в группе
-notParsed :: [ (String, Either ParseError [Component]) ] -> [String]
-notParsed xs = map fst $ filter (isLeft . snd) xs
+notParsed :: [ (String, Either ParseError [Component]) ]
+          -> [ (String, Either ParseError [Component]) ]
+notParsed xs = filter (isLeft . snd) xs
     where isLeft (Left _) = True
           isLeft _ = False
 
@@ -48,7 +49,8 @@ notMatched ::
     [ (String, Either ParseError [Component]) ] ->
     [ (String, Either ParseError [Component]) ] ->
     [(
-        String, -- Адрес первой группы
+        String,      -- Адрес первой группы
+        [Component], -- Распарсенный адрес первой группы
         Either String [(
             String -- Один из адресов второй группы
          ,  Int    -- Степень соответствия адресу первой группы
@@ -76,8 +78,10 @@ notMatched xs ys =
 
     in for
         (Set.toList $ xSet \\ ySet) -- Адреса 1-й группы без пары во 2-й
-        (\ x -> (,) (fromJust $ rlookup x xs')
-            (let road = find isRoad x
+        (\ x -> (,,)
+            (fromJust $ rlookup x xs') -- Строка с адресом
+            x                          -- Распарсенные компоненты
+            (let road = find isRoad x  -- Список похожих альтернатив
              in if isNothing road
                 then Left "В адресе не задана дорога"
                 else Right
