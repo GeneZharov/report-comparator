@@ -146,8 +146,8 @@ drawNotMatched builder containerID model = do
     tableSetRowSpacings table 7
     tableSetColSpacings table 40
 
-    genLabel (header "Без пары из текущей группы адресов") >>= addCell table 0 0
-    genLabel (header "Похожие из другой группы адресов" )  >>= addCell table 1 0
+    genLabel (meta "Без пары из текущей группы адресов") >>= addCell table 0 0
+    genLabel (meta "Похожие из другой группы адресов" )  >>= addCell table 1 0
 
     -- Генерю строки с адресами, которым не нашлось пары
     forM_ (zip model [1..]) $ \ ((addr, comps, options), i) -> do
@@ -180,13 +180,12 @@ drawNotMatched builder containerID model = do
                 -- Генерю одну из альтернатив
                 hbox <- hBoxNew False 7
                 boxSetHomogeneous hbox False
-                if matched
-                    then genLabel "— уже имеет пару"
-                     >>= boxPackEndDefaults hbox
-                    else return ()
                 alt <- genLabel addr
                 labelSetSelectable alt True
-                boxPackEndDefaults hbox alt
+                boxPackStart hbox alt PackNatural 0
+                when matched $ do
+                    pairedLabel <- genLabel (meta "— уже имеет пару")
+                    boxPackStart hbox pairedLabel PackNatural 0
                 boxPackEndDefaults vbox hbox -- Добавляю hbox в конец vbox
             addCell table 1 (i*2+1) vbox
 
@@ -200,9 +199,9 @@ drawNotMatched builder containerID model = do
           isLeft (Right _) = False
           fromLeft (Left x)   = x
           fromRight (Right x) = x
-          header text = "<span fgcolor=\"#6D6D6D\" \
-                             \ style=\"italic\" \
-                        \>" ++ text ++ "</span>"
+          meta text = "<span fgcolor=\"#6D6D6D\" \
+                           \ style=\"italic\" \
+                      \>" ++ text ++ "</span>"
 
 
 

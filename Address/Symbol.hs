@@ -71,6 +71,11 @@ value = do
 
 keys = [
 
+        ( Область, (
+            strings "область",
+            strings "обл"
+        ) ),
+
         ( Город, (
             strings "город",
             try (strings "гор") <|> strings "г"
