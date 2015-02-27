@@ -7,13 +7,13 @@ author:              Keilys
 maintainer:          krantadan@mail.ru
 category:            Network
 build-type:          Simple
-extra-source-files:  README.sum
+extra-source-files:  README.nt
 cabal-version:       >=1.10
 
 
 library
   default-language: Haskell2010
-  exposed-modules: Utils
+  exposed-modules: Address.Main, Address.Types
   hs-source-dirs: Address
   build-depends:
     base,

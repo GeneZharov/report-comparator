@@ -28,16 +28,6 @@ alert parentWindow msg = do
 
 
 
--- Приводит набор компонентов адреса к читаемой строке
-format :: [ Component ] -> String
-format = init . tail     -- Обрезаю фигурные скобки
-       . map newlines . toReadable . show
-    where newlines c | c == ',' = '\n'
-          newlines c | otherwise = c
-          -- Заменяет запятую на перенос строки
-
-
-
 -- Заменяет юникоды вида "\1077" в строках, которые создают функции вроде 
 -- print/show на читаемые символы.
 toReadable :: String -> String
@@ -50,8 +40,17 @@ toReadable str = replace ( str =~ "\\\\([0-9]{4})" )
 
 
 
--- draw отрисовывает результат вычислений
+-- Приводит набор компонент адреса к читаемой строке
+format :: [ Component ] -> String
+format = init . tail     -- Обрезаю фигурные скобки
+       . map newlines . toReadable . show
+    where newlines c | c == ',' = '\n'
+          newlines c | otherwise = c
+          -- Заменяет запятую на перенос строки
 
+
+
+-- draw отрисовывает результат вычислений
 draw :: Window
      -> Builder
      -> Either IOError [ (String, Either ParseError [Component]) ]
@@ -234,10 +233,10 @@ main = do
 
     onClicked submit $ do
 
-        --photosDir <- fileChooserGetFilename photos
-        --notesFile <- fileChooserGetFilename notes
-        let photosDir = Just "./samples/spb"
-        let notesFile = Just "./samples/spb-wrong-column.csv"
+        photosDir <- fileChooserGetFilename photos
+        notesFile <- fileChooserGetFilename notes
+        --let photosDir = Just "./samples/spb"
+        --let notesFile = Just "./samples/spb-wrong-column.csv"
 
         if any isNothing [photosDir, notesFile]
         then alert mainWindow

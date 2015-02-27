@@ -5,10 +5,9 @@ module Main.Extraction where
 import Control.Monad
 import Text.Regex.PCRE ((=~))
 import System.FilePath (takeBaseName)
-import System.Directory (getDirectoryContents)
+import System.Directory (getDirectoryContents, doesDirectoryExist)
 import Text.Parsec.Error (ParseError)
 import System.IO
-import System.Posix.Files (isDirectory, getFileStatus)
 import Debug.Trace (trace)
 import Control.Exception (throwIO)
 import System.IO.Error (userError)
@@ -39,8 +38,8 @@ fromPhotos :: String -> IO [String]
 fromPhotos dir =
     liftM (filter (`notElem` [ ".", ".." ])) (getDirectoryContents dir)
     >>= mapM ( \ f -> do
-                 status <- getFileStatus (dir ++ "/" ++ f)
-                 return $ if isDirectory status
+                 exists <- doesDirectoryExist (dir ++ "/" ++ f)
+                 return $ if exists
                           then f
                           else (takeBaseName f)
              )

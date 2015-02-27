@@ -8,28 +8,33 @@
    почему именно.
 
 
-Установка GTK+ 2 all-in-one bundle 32-разрядный
+Установка с правами админа GTK+ 2 all-in-one bundle 32-разрядный
    Распакуй в путь без пробелов.
    Добавь каталог bin в %PATH%
    Проверь, что работает из cmd.exe:
       pkg-config --cflags gtk+-2.0
 
 
-Установка Haskell Platform 32-разрядную
+Установка с правами админа Haskell Platform 32-разрядную
 
 
-Установка пакетов из cabal
+Установка пакетов из cabal от обычного пользователя
    cmd.exe (с админскими правами на всякий случай)
       │ После правки PATH, нужно перезагрузить терминал
 
    cabal update
 
-   │ Сначала устанавливаю зависимости gtk, которые почему-то не ставятся сами
-   cabal install edit-distance
-   cabal install regex-pcre-builtin
+   cabal install directory
    cabal install parsec
+   cabal install edit-distance
    cabal install bytestring
+   cabal install regex-pcre-builtin
    cabal install utf8-light
+
+   ━━━━ GTK 2
+
+   │ Сначала устанавливаю зависимости gtk, которые почему-то не ставятся сами.
+   │ Возможно в этот список нужно включить ещё какой-то из пакетов выше.
    cabal install gtk2hs-buildtools
 
    # gtk2
