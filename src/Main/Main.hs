@@ -235,8 +235,8 @@ main = do
 
         photosDir <- fileChooserGetFilename photos
         notesFile <- fileChooserGetFilename notes
-        --let photosDir = Just "./samples/spb"
-        --let notesFile = Just "./samples/spb-wrong-column.csv"
+        --let photosDir = Just "../samples/spb"
+        --let notesFile = Just "../samples/spb-wrong-column.csv"
 
         if any isNothing [photosDir, notesFile]
         then alert mainWindow
