@@ -132,6 +132,11 @@ keys = [
             strings "наб"
         ) ),
 
+        ( Проезд, (
+            strings "проезд",
+            strings "пр-д"
+        ) ),
+
         ( Спуск, (
             strings "спуск",
             many1 (satisfy (const False))

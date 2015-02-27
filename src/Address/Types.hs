@@ -30,6 +30,7 @@ data Component =
     | Бульвар String
     | Проспект String
     | Набережная String
+    | Проезд String
     | Спуск String
     | Тупик String
 
