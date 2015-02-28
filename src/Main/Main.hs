@@ -225,6 +225,7 @@ main = do
     builder <- builderNew
     builderAddFromFile builder "./Main/main.glade"
     mainWindow <- builderGetObject builder castToWindow "window1"
+    windowMaximize mainWindow
     onDestroy mainWindow mainQuit
 
     photos <- builderGetObject builder castToFileChooserButton "photos"
