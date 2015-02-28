@@ -16,7 +16,7 @@ parseAddr :: String -> Either ParseError [Component]
 parseAddr = either Left (Right . mergeLitera) . parse address ""
 
 
--- Пост-обработка результата разбора: удаляет компоненту "Литера" и букву из 
+-- Пост-обработка результата разбора: удаляет компоненту "Литера", а букву из 
 -- неё вносит в компоненту "Дом", если в нём ещё нет литеры.
 mergeLitera :: [Component] -> [Component]
 mergeLitera cs = maybe cs edit . find isLitera $ cs
@@ -25,10 +25,12 @@ mergeLitera cs = maybe cs edit . find isLitera $ cs
         edit :: Component -> [Component]
         edit (Литера l) = filter (not . isLitera) . map (editHouse l) $ cs
 
+        -- Предикат для распознавания компоненты "Литера"
         isLitera :: Component -> Bool
         isLitera (Литера _) = True
         isLitera _ = False
 
+        -- Добавляет в компоненту "Дом" литеру
         editHouse :: Char -> Component -> Component
         editHouse l (Дом (HouseNum (Part n Nothing) Nothing))
                   = Дом $ HouseNum (Part n $ Just l) Nothing
@@ -45,4 +47,5 @@ component = S.constant
         <|> try D.prefix
         <|> try S.prefix
         <|> try D.postfix
-        <|>     S.postfix
+        <|> try S.postfix
+        <|> anyChar *> component -- восстановление от ошибок

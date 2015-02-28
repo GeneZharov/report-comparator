@@ -50,7 +50,11 @@ main = do
     parseTest address "МО, ул. 1-я Дубровская"
     -}
 
-    parseAddr "МО, ул. 1-я Дубровская, дом 1, лит А"
+    print $ parseAddr "МО, 1-я Дубровская шоссе ул, д1, лит А"
+    print $ parseAddr "Волхонское шоссе ул,д.31"
+    print $ parseAddr "Мытнинская ул.,д.25 Лит. А"
+    print $ parseAddr "Обводного канала набережная ул.,д.123 Лит А"
+    print $ parseAddr "Серебристый бульвар ул.,д.14 к.2"
 
     --putStrLn $ format $ fromRight $ parseAddr "МО, ул. 1-я Дубровская, д.99"
     --where fromRight (Right x) = x
