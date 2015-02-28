@@ -10,16 +10,46 @@ import Data.Tuple (swap)
 import Text.Parsec.Error (ParseError)
 import Data.Maybe (fromJust, isNothing)
 import Data.Either (rights)
+import Debug.Trace (trace)
 
 import Address.Types (Component, isRoad, getRoad)
 
 
 
--- Вычисляет расстояние Дамерау-Левенштейна до каждого слова и возвращает 
--- минимальное расстояние.
+-- Нечёткий поиск подстроки.
+--
+-- Разбивает образец и проверяемую строку на слова. Далее слова образца 
+-- сцепляет вместе, чтобы нормализовать пробелы. А из слов проверяемой строки 
+-- сооружает множество словосечетаний длиной, но чтобы количество слов в них не 
+-- превышало таковое в образце. Например для:
+--     pattern = "a b c"
+--     testing = "a b c d e"
+-- Будут комбинации:
+--     "a b c"
+--     "b c d"
+--     "c d e"
+-- После этого применяет алгоритм Дамерау-Левенштейна образцу и каждому из 
+-- словосочетаний. Возвращает минимальное из получившихся расстояний.
+
 linearSearch :: String -> String -> Int
-linearSearch pattern str = minimum $ map (distance pattern) (words str)
-    where distance = restrictedDamerauLevenshteinDistance defaultEditCosts
+linearSearch pattern testing =
+
+    minimum $ map (distance pattern') testing'
+
+    where
+
+        distance = restrictedDamerauLevenshteinDistance defaultEditCosts
+
+        -- Нормализую пробелы
+        pattern' = unwords (words pattern)
+
+        -- Собираю возможные комбинации слов из проверяемой строки с тем же 
+        -- количеством слов, что и в образце.
+        testing' = flip map [0..v] $ \i -> unwords $ slice i p (words testing)
+            where p = length (words pattern)
+                  t = length (words testing)
+                  v = t - (p - 1) -- количество комбинаций слов
+                  slice a b = take b . drop a
 
 
 
