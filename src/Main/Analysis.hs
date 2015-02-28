@@ -10,6 +10,7 @@ import Data.Tuple (swap)
 import Text.Parsec.Error (ParseError)
 import Data.Maybe (fromJust, isNothing)
 import Data.Either (rights)
+import Data.Char (toLower)
 import Debug.Trace (trace)
 
 import Address.Types (Component, isRoad, getRoad)
@@ -119,7 +120,7 @@ notMatched xs ys =
                    $ filter (\ (_,x,_) -> x < 3 )
                    $ for ys (\ (yStr, y) ->
                        ( yStr
-                       , linearSearch (getRoad $ fromJust road) yStr
+                       , linearSearchIC (getRoad $ fromJust road) yStr
                        , either
                              (const False)
                              (`elem` Set.toList intersection)
@@ -133,3 +134,5 @@ notMatched xs ys =
           rlookup x = lookup x . map swap
           isRight (Right _) = True
           isRight _         = False
+          linearSearchIC a b = linearSearch (map toLower a) (map toLower b)
+              -- Регистронезависимый поиск подстроки

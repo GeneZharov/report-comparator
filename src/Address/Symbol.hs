@@ -13,6 +13,7 @@ module Address.Symbol (constant, prefix, postfix) where
 import Text.Parsec
 import Control.Applicative hiding (optional, (<|>), many)
 import Debug.Trace (trace)
+import Data.Char (toLower)
 
 import Address.Utils
 import Address.Types
@@ -32,7 +33,7 @@ prefix = do
         in do
             watch $ "symbol test " ++ show (constr "")
             (try fullKey <|> try shortKey)
-                *> fmap constr value
+                *> fmap (constr . map toLower) value
                 <* lookAhead sep
 
 
@@ -45,7 +46,7 @@ postfix = do
         in do
             watch $ "symbol test " ++ show (constr "")
             try fullKey <|> try shortKey
-            return (constr value)
+            return (constr $ map toLower value)
 
 
 sep = space

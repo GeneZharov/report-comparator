@@ -18,6 +18,7 @@ module Address.Digit (prefix, postfix) where
 
 import Text.Parsec
 import Control.Applicative hiding (optional, (<|>))
+import Data.Char (toLower)
 
 import Address.Utils
 import Address.Types
@@ -77,7 +78,8 @@ part = do
     watch "part"
     Part
         <$> fmap (read :: String -> Int) (many1 digit)
-        <*> option Nothing (try $ optional (char '-') *> fmap Just letter)
+        <*> option Nothing
+                (try $ optional (char '-') *> fmap (Just . toLower) letter)
 
 
 keys = [
