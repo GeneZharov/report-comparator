@@ -167,9 +167,9 @@ drawNotMatched builder containerID model = do
         -- Похожие адреса
         if isLeft options
         then do
-            errorLabel <- genLabel (fromLeft options)
+            errorLabel <- genLabel (meta $ fromLeft options)
             labelSetSelectable errorLabel True
-            addCell table 1 (i*2) errorLabel
+            addCell table 1 (i*2+1) errorLabel
         else do
             vbox <- vBoxNew True 7 -- homogeneous, spacing
             let sorted = flip sortBy (fromRight options)
