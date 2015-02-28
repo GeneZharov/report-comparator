@@ -13,6 +13,7 @@ main = do
 
     -- TODO: Тут хорошо было бы сделать модульное тестирование
 
+    {-
     parseTest D.prefix "строение 1-A/2"
     parseTest D.prefix "стр 1-A/2"
     parseTest D.prefix "стр. 1-A/2"
@@ -47,6 +48,9 @@ main = do
     parseTest address "Алябьева ул., д.7/33, к.1"
 
     parseTest address "МО, ул. 1-я Дубровская"
+    -}
+
+    parseAddr "МО, ул. 1-я Дубровская, дом 1, лит А"
 
     --putStrLn $ format $ fromRight $ parseAddr "МО, ул. 1-я Дубровская, д.99"
     --where fromRight (Right x) = x
