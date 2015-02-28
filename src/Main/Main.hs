@@ -98,7 +98,7 @@ draw window builder (Right photos) (Right notes) = do
 drawMatched :: Builder -> String -> Int -> IO ()
 drawMatched builder labelID count = do
     label <- builderGetObject builder castToLabel labelID
-    labelSetMarkup label $ "<big>" ++ show count ++ "</big>"
+    labelSetMarkup label (show count)
 
 
 
@@ -207,7 +207,7 @@ drawNotMatched builder containerID model = do
 genLabel text = do
     label <- labelNew Nothing
     miscSetAlignment label  0 0
-    labelSetMarkup label $ "<big>" ++ text ++ "</big>"
+    labelSetMarkup label text
     return label
 
 addCell table x y widget = tableAttach table widget
@@ -234,10 +234,10 @@ main = do
 
     onClicked submit $ do
 
-        photosDir <- fileChooserGetFilename photos
-        notesFile <- fileChooserGetFilename notes
-        --let photosDir = Just "../samples/spb"
-        --let notesFile = Just "../samples/spb-wrong-column.csv"
+        --photosDir <- fileChooserGetFilename photos
+        --notesFile <- fileChooserGetFilename notes
+        let photosDir = Just "../samples/spb"
+        let notesFile = Just "../samples/spb-wrong-column.csv"
 
         if any isNothing [photosDir, notesFile]
         then alert mainWindow
