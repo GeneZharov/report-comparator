@@ -70,82 +70,82 @@ value = do
             <|> eof *> return 'x'
 
 
-keys = [
+keys = let null = many1 (satisfy (const False))
+       in [
 
-        ( Область, (
-            strings "область",
-            strings "обл"
-        ) ),
+            ( Область, (
+                strings "область",
+                strings "обл"
+            ) ),
 
-        ( Город, (
-            strings "город",
-            try (strings "гор") <|> strings "г"
-        ) ),
+            ( Город, (
+                strings "город",
+                try (strings "гор") <|> strings "г"
+            ) ),
 
-        ( Посёлок, (
-            strings "пос" *> oneOf "ёе" *> strings "лок",
-            try (strings "пос") <|> strings "п"
-        ) ),
+            ( Посёлок, (
+                strings "пос" *> oneOf "ёе" *> strings "лок",
+                try (strings "пос") <|> strings "п"
+            ) ),
 
-        ( Село, (
-            strings "село",
-            many1 (satisfy (const False))
-                -- Сокращение 'с' конфликтует со строением
-        ) ),
+            ( Село, (
+                strings "село",
+                null -- сокращение 'с' конфликтует со строением
+            ) ),
 
-        ( Деревня, (
-            strings "деревня",
-            many1 (satisfy (const False))
-        ) ),
+            ( Деревня, (
+                strings "деревня",
+                null
+            ) ),
 
-        ( Микрорайон, (
-            strings "микрорайон",
-            strings "мкр"
-        ) ),
+            ( Микрорайон, (
+                strings "микрорайон",
+                strings "мкр"
+            ) ),
 
-        ( Улица, (
-            strings "улица",
-            strings "ул"
-        ) ),
+            ( Улица, (
+                strings "улица",
+                strings "ул"
+            ) ),
 
-        ( Шоссе, (
-            strings "шоссе",
-            strings "ш"
-        ) ),
+            ( Шоссе, (
+                strings "шоссе",
+                strings "ш"
+            ) ),
 
-        ( Переулок, (
-            strings "переулок",
-            strings "пер"
-        ) ),
+            ( Переулок, (
+                strings "переулок",
+                strings "пер"
+            ) ),
 
-        ( Бульвар, (
-            strings "бульвар",
-            strings "б-р"
-        ) ),
+            ( Бульвар, (
+                try (strings "бульвар") <|> strings "б-р",
+                null
+            ) ),
 
-        ( Проспект, (
-            strings "проспект",
-            try (strings "пр-т") <|> strings "пр"
-        ) ),
+            ( Проспект, (
+                try (strings "проспект") <|> strings "пр-т",
+                strings "пр"
+            ) ),
 
-        ( Набережная, (
-            strings "набережная",
-            strings "наб"
-        ) ),
+            ( Набережная, (
+                strings "набережная",
+                strings "наб"
+            ) ),
 
-        ( Проезд, (
-            strings "проезд",
-            strings "пр-д"
-        ) ),
+            ( Проезд, (
+                try (strings "проезд") <|> strings "пр-д",
+                null
+            ) ),
 
-        ( Спуск, (
-            strings "спуск",
-            many1 (satisfy (const False))
-        ) ),
+            ( Спуск, (
+                strings "спуск",
+                null
+            ) ),
 
-        ( Тупик, (
-            strings "тупик",
-            many1 (satisfy (const False))
-        ) )
+            ( Тупик, (
+                strings "тупик",
+                null
+            ) )
 
-    ]
+        ]
