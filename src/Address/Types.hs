@@ -19,6 +19,7 @@ data Component =
     | Деревня String
 
     -- District
+    | Район String
     | Микрорайон String
 
     -- Road

@@ -79,7 +79,7 @@ sep = space
 value :: Parsec String Bool String
 value = do
     watch "value"
-    manyTill1 anyChar $ lookAhead $
+    manyTill1 (alphaNum <|> oneOf " -.") $ lookAhead $
             try (many  space <* eof)
         <|> try (many  space <* char ',')
         <|> try (many1 space <* choice (map symbolKey keys))
@@ -94,6 +94,11 @@ value = do
 
 keys = let null = many1 (satisfy (const False))
        in [
+
+            -- Несмотря на то, что по правилам русского языка после слов, 
+            -- сокращённых через '-' не ставится точка, находятся дебилы, 
+            -- которые её ставят, поэтому располагаю такие ключи во второй 
+            -- группе.
 
             ( Область, (
                 strings "область",
@@ -112,7 +117,7 @@ keys = let null = many1 (satisfy (const False))
 
             ( Село, (
                 strings "село",
-                null -- сокращение 'с' конфликтует со строением
+                strings "с" -- сокращение 'с' конфликтует со строением
             ) ),
 
             ( Деревня, (
@@ -120,9 +125,14 @@ keys = let null = many1 (satisfy (const False))
                 null
             ) ),
 
+            ( Район, (
+                strings "район",
+                strings "р-н"
+            ) ),
+
             ( Микрорайон, (
                 strings "микрорайон",
-                strings "мкр"
+                try (strings "мкрн") <|> strings "мкр"
             ) ),
 
             ( Улица, (
@@ -141,13 +151,13 @@ keys = let null = many1 (satisfy (const False))
             ) ),
 
             ( Бульвар, (
-                try (strings "бульвар") <|> strings "б-р",
-                null
+                strings "бульвар",
+                strings "б-р"
             ) ),
 
             ( Проспект, (
-                try (strings "проспект") <|> strings "пр-т",
-                strings "пр"
+                strings "проспект",
+                try (strings "пр-т") <|> strings "пр"
             ) ),
 
             ( Набережная, (
@@ -156,8 +166,8 @@ keys = let null = many1 (satisfy (const False))
             ) ),
 
             ( Проезд, (
-                try (strings "проезд") <|> strings "пр-д",
-                null
+                strings "проезд",
+                strings "пр-д"
             ) ),
 
             ( Спуск, (

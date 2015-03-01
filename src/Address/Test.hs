@@ -20,6 +20,7 @@ main = do
     print $ parseAddr "стр.1-A/2"
     print $ parseAddr "1-A/2 строение"
     print $ parseAddr "1-A/2 стр"
+    print $ parseAddr "1-A/2 с"
 
     print $ parseAddr "ул. 1-я Дубровская"
 
@@ -51,9 +52,12 @@ main = do
     -}
 
     -- Без ключей
-    print $ parseAddr "Таганская, 1"
-    print $ parseAddr "1 Дубровская, 1"
-    print $ parseAddr "1, 1, Дубровская"
+    --print $ parseAddr "Таганская, 1"
+    --print $ parseAddr "1 Дубровская, 1"
+    --print $ parseAddr "1, 1, Дубровская"
+
+    --print $ parseAddr "Вернадского пр-т.,д.28 (3)"
+    print $ parseAddr "Одинцово г .,Любы Новоселовой б-р,д.17"
 
     {-
     print $ parseAddr "МО, 1-я Дубровская шоссе ул, д1, лит А"
