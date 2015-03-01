@@ -13,6 +13,7 @@ import Address.Utils
 import Address.Types
 
 
+prefix :: Parsec String Bool Component
 prefix = do
     watch "char prefix"
     choice $ flip map keys $ \ (constr, key) ->
@@ -26,6 +27,7 @@ prefix = do
                 <* lookAhead sep
 
 
+postfix :: Parsec String Bool Component
 postfix = do
     watch "char postfix"
     value <- value <* skipMany1 space
@@ -38,12 +40,14 @@ postfix = do
             return (constr $ toLower value)
 
 
+sep :: Parsec String Bool Char
 sep = space
   <|> char ','
   <|> char '.' -- Бывают адреса с точкой-разделителем
   <|> eof *> return 'x'
 
 
+value :: Parsec String Bool Char
 value = do
     watch "value"
     letter

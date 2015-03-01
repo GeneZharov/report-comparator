@@ -8,17 +8,29 @@
 --    1д — так не пишут, и это конфликтует с номером с буквой вроде 1А
 
 
-module Address.Digit (prefix, postfix) where
+module Address.Digit (standalone, prefix, postfix) where
 
 
 import Text.Parsec
 import Control.Applicative hiding (optional, (<|>))
 import Data.Char (toLower)
+import Control.Monad (when)
 
 import Address.Utils
 import Address.Types
 
 
+-- Компонента по умолчанию, без ключа
+standalone :: Parsec String Bool Component
+standalone = do
+    watch "digit standalone"
+    roadParsed <- getState
+    if roadParsed
+    then fmap Дом number <* lookAhead sep
+    else fail "Ещё не была распарсена дорога"
+
+
+prefix :: Parsec String Bool Component
 prefix = do
     watch "digit prefix"
     choice $ flip map keys $ \ (constr, key) ->
@@ -32,6 +44,7 @@ prefix = do
                 <* lookAhead sep
 
 
+postfix :: Parsec String Bool Component
 postfix = do
     watch "digit postfix"
     value <- number <* skipMany1 space
@@ -44,17 +57,20 @@ postfix = do
             return (constr value)
 
 
+sep :: Parsec String Bool Char
 sep = space
   <|> char ','
   <|> char '.' -- Бывают адреса с точкой-разделителем
   <|> eof *> return 'x'
 
 
+emptyNum :: (HouseNum -> Component) -> Component
 emptyNum constr = constr $ HouseNum (Part 0 Nothing) Nothing
     -- Загоняет в числовой конструктор пустой номер дома, чтобы его потом можно 
     -- было распечатать для отладки, чтобы понять какой конструр использовался.
 
 
+number :: Parsec String Bool HouseNum
 number = do
     -- Полный номер, например "1A/2B"
     -- Встречаются корпуса с буквой. По тем же соображениям, что и номера 
@@ -67,6 +83,7 @@ number = do
            -- так как в имени файла не может быть слэша.
 
 
+part :: Parsec String Bool Part
 part = do
     -- Половина номера с левой или правой стороны от слэша
     -- Например "2-B" или "2B"

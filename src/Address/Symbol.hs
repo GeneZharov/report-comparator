@@ -7,23 +7,38 @@
 --    компонент, если не иметь словаря городов/улиц.
 
 
-module Address.Symbol (constant, prefix, postfix) where
+module Address.Symbol (constant, standalone, prefix, postfix) where
 
 
 import Text.Parsec
 import Control.Applicative hiding (optional, (<|>), many)
-import Debug.Trace (trace)
 import Data.Char (toLower)
+import Control.Monad (when)
+import Debug.Trace (trace)
 
 import Address.Utils
 import Address.Types
 import qualified Address.Digit as D
 
 
-constant = strings "мо" *> return (Область "Московская")
-    -- Фрагменты без ключей, но легко узнаваемые
+constant :: Parsec String Bool Component
+constant = do -- статичные легко узнаваемые компоненты
+    watch "symbol constant"
+    strings "мо"
+        *> lookAhead sep
+        *> return (Область "Московская")
 
 
+-- Компонента по умолчанию, без ключа
+standalone :: Parsec String Bool Component
+standalone = do
+    watch "symbol standalone"
+    fmap (Улица . map toLower) value
+        <* lookAhead sep
+        <* modifyState (const True)
+
+
+prefix :: Parsec String Bool Component
 prefix = do
     watch "symbol prefix"
     choice $ flip map keys $ \ (constr, key) ->
@@ -32,11 +47,14 @@ prefix = do
                                <|> skipMany1 space)
         in do
             watch $ "symbol test " ++ show (constr "")
-            (try fullKey <|> try shortKey)
-                *> fmap (constr . map toLower) value
-                <* lookAhead sep
+            result <- (try fullKey <|> try shortKey)
+                   *> fmap (constr . map toLower) value
+                   <* lookAhead sep
+            when (isRoad result) (modifyState $ const True)
+            return result
 
 
+postfix :: Parsec String Bool Component
 postfix = do
     watch "symbol postfix"
     value <- value <* skipMany1 space
@@ -46,15 +64,19 @@ postfix = do
         in do
             watch $ "symbol test " ++ show (constr "")
             try fullKey <|> try shortKey
-            return (constr $ map toLower value)
+            let result = constr (map toLower value)
+            when (isRoad result) (modifyState $ const True)
+            return result
 
 
+sep :: Parsec String Bool Char
 sep = space
   <|> char ','
   <|> char '.' -- Бывают адреса с точкой-разделителем
   <|> eof *> return 'x'
 
 
+value :: Parsec String Bool String
 value = do
     watch "value"
     manyTill1 anyChar $ lookAhead $

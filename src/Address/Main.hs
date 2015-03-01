@@ -13,7 +13,10 @@ import qualified Address.Char as C
 
 
 parseAddr :: String -> Either ParseError [Component]
-parseAddr = either Left (Right . mergeLitera) . parse address ""
+parseAddr = either Left (Right . mergeLitera) . runParser address False ""
+    -- False — это user data, который показывает была ли уже распарсена хотя бы 
+    -- раз компонента дороги. Если так, то можно трактовать номера без ключа 
+    -- как номер дома.
 
 
 -- Пост-обработка результата разбора: удаляет компоненту "Литера", а букву из 
@@ -37,15 +40,23 @@ mergeLitera cs = maybe cs edit . find isLitera $ cs
         editHouse l x = x
 
 
+address :: Parsec String Bool [Component]
 address = many space *> component `sepEndBy` sep <* eof
     where sep = optional (char ',' <|> char '.') *> many space
 
 
-component = S.constant
-        <|> try C.prefix
-        <|> try C.postfix
+component :: Parsec String Bool Component
+component = try S.constant
+
         <|> try D.prefix
         <|> try S.prefix
+        <|> try C.prefix -- редко используется
+
         <|> try D.postfix
-        <|>     S.postfix
+        <|> try S.postfix
+        <|> try C.postfix -- редко используется
+
+        <|> try D.standalone
+        <|>     S.standalone
+
         -- <|> anyChar *> component -- восстановление после ошибки в адресе
