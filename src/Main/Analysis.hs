@@ -11,6 +11,7 @@ import Text.Parsec.Error (ParseError)
 import Data.Maybe (fromJust, isNothing)
 import Data.Either (rights)
 import Data.Char (toLower)
+import Data.List (groupBy)
 import Debug.Trace (trace)
 
 import Address.Types (Component, isRoad, getRoad)
@@ -33,10 +34,7 @@ import Address.Types (Component, isRoad, getRoad)
 -- словосочетаний. Возвращает минимальное из получившихся расстояний.
 
 linearSearch :: String -> String -> Int
-linearSearch pattern testing =
-
-    minimum $ map (distance pattern') testing'
-
+linearSearch pattern testing = minimum $ map (distance pattern') testing'
     where
 
         distance = restrictedDamerauLevenshteinDistance defaultEditCosts
@@ -61,6 +59,19 @@ matchedCount ::
     Int
 matchedCount xs ys = Set.size $ Set.intersection (toSet xs) (toSet ys)
     where toSet = Set.fromList . rights . snd . unzip
+
+
+
+-- Формирует список дубликатов (одинаковое множество компонент).
+-- Возвращает количество повторений каждого из дубликатов.
+duplicates ::
+    [ (String, Either ParseError [Component]) ] ->
+    [ (Int, (String, Either ParseError [Component])) ]
+duplicates = map (\xs -> (length xs, head xs))
+           . filter ((>1) . length)
+           . groupBy test
+    where test (_, Right a) (_, Right b) = Set.fromList a == Set.fromList b
+          test _ _ = False
 
 
 

@@ -14,7 +14,7 @@ import Text.Regex.Posix ((=~))
 import Debug.Trace
 
 import Main.Extraction (extract, fromNotes, fromPhotos)
-import Main.Analysis (matchedCount, notParsed, notMatched)
+import Main.Analysis (matchedCount, duplicates, notParsed, notMatched)
 import Address.Types
 
 
@@ -79,6 +79,10 @@ draw window builder (Right photos) (Right notes) = do
     --print $ notParsed photos
     --print $ notParsed notes
 
+    -- Дубликаты
+    drawDuplicates builder "photosDuplicates" $ duplicates photos
+    drawDuplicates builder "notesDuplicates"  $ duplicates notes
+
     -- Адреса без пары
     drawNotMatched builder "photosNotMatched" $ notMatched photos notes
     drawNotMatched builder "notesNotMatched"  $ notMatched notes photos
@@ -102,8 +106,43 @@ drawMatched builder labelID count = do
 
 
 
--- Отрисовывает не распарсенные адреса. Принимает набор данных и идентификатор 
--- виджета, в который вставлять результат.
+-- Отрисовывает дубликаты адресов.
+-- Принимает набор данных и id виджета, в который вставлять результат.
+drawDuplicates :: Builder -> String
+    -> [ (Int, (String, Either ParseError [Component])) ]
+    -> IO ()
+drawDuplicates builder containerID model = do
+
+    -- Создаю таблицу
+    table <- tableNew (length model) 2 False
+        -- Количество строк, столбцов, homogeneous
+    tableSetRowSpacings table 7
+    tableSetColSpacing table 0 7 -- номер колонки, количество пикселей
+
+    -- Наполняю таблицу строками
+    forM_ (zip [0..] model) $ \ (i, (count, (src, Right comps))) -> do
+
+        -- Ячейка с текстом адреса
+        srcLabel <- genLabel src
+        set srcLabel [
+            widgetTooltipText := Just (format comps)
+          , labelSelectable := True
+          ]
+        addCell table 0 i srcLabel
+
+        -- Ячейка с количеством дубликатов
+        genLabel ("— " ++ show count ++ " шт.") >>= addCell table 1 i
+
+    -- Подставляю таблицу в контейнер и показываю результат
+    alignment <- builderGetObject builder castToAlignment containerID
+    containerGetChildren alignment >>= mapM_ widgetDestroy
+    containerAdd alignment table
+    widgetShowAll table
+
+
+
+-- Отрисовывает не распарсенные адреса.
+-- Принимает набор данных и id виджета, в который вставлять результат.
 drawNotParsed :: Builder -> String
               -> [ (String, Either ParseError [Component]) ]
               -> IO ()
@@ -115,7 +154,7 @@ drawNotParsed builder containerID model = do
     tableSetRowSpacings table 7
 
     -- Наполняю таблицу строками
-    forM_ (zip model [0..]) $ \ (addr, i) -> do
+    forM_ (zip [0..] model) $ \ (i, addr) -> do
         label <- genLabel (fst addr)
         labelSetSelectable label True
         addCell table 0 i label
@@ -159,15 +198,15 @@ drawNotMatched builder containerID model = do
         leftLabel <- genLabel addr
         set leftLabel [
             widgetTooltipText := Just (format comps)
-         , labelSelectable := True
-         ]
+          , labelSelectable := True
+          ]
         --labelSetSelectable leftLabel True
         addCell table 0 (i*2+1) leftLabel
 
         -- Похожие адреса
         if isLeft options
         then do
-            errorLabel <- genLabel (meta $ fromLeft options)
+            errorLabel <- genLabel (italicMeta $ fromLeft options)
             labelSetSelectable errorLabel True
             addCell table 1 (i*2+1) errorLabel
         else do
@@ -183,7 +222,7 @@ drawNotMatched builder containerID model = do
                 labelSetSelectable alt True
                 boxPackStart hbox alt PackNatural 0
                 when matched $ do
-                    pairedLabel <- genLabel (meta "— уже имеет пару")
+                    pairedLabel <- genLabel (italicMeta "— уже имеет пару")
                     boxPackStart hbox pairedLabel PackNatural 0
                 boxPackEndDefaults vbox hbox -- Добавляю hbox в конец vbox
             addCell table 1 (i*2+1) vbox
@@ -199,8 +238,10 @@ drawNotMatched builder containerID model = do
           fromLeft (Left x)   = x
           fromRight (Right x) = x
           meta text = "<span fgcolor=\"#6D6D6D\" \
-                           \ style=\"italic\" \
                       \>" ++ text ++ "</span>"
+          italicMeta text = "<span fgcolor=\"#6D6D6D\" \
+                                 \ style=\"italic\" \
+                            \>" ++ text ++ "</span>"
 
 
 

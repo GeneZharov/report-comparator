@@ -47,5 +47,5 @@ component = S.constant
         <|> try D.prefix
         <|> try S.prefix
         <|> try D.postfix
-        <|> try S.postfix
-        <|> anyChar *> component -- восстановление от ошибок
+        <|>     S.postfix
+        -- <|> anyChar *> component -- восстановление после ошибки в адресе
