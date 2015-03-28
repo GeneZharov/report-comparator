@@ -4,7 +4,7 @@ module Main.Extraction where
 
 import Control.Monad
 import Text.Regex.PCRE ((=~))
-import System.FilePath (takeBaseName)
+import System.FilePath (takeFileName, takeBaseName)
 import System.Directory (getDirectoryContents, doesDirectoryExist)
 import Text.Parsec.Error (ParseError)
 import System.IO
@@ -15,6 +15,28 @@ import System.IO.Error (userError)
 import Address.Main
 import Address.Types
 import ParseCSV
+
+
+-- Извлекает адреса из имён файлов внутри каталога с фотографиями. Может 
+-- работать в двух режимах: извлечение из имён каталогов и из имён обычных 
+-- файлов.
+fromPhotos :: Bool -> String -> IO [String]
+fromPhotos dirMode dir = do
+
+    names <- liftM (filter (`notElem` [ ".", ".." ])) (getDirectoryContents dir)
+    let fullNames = map ((dir ++ "/") ++) names
+    hasSubDirs <- liftM (not . null) (filterM doesDirectoryExist fullNames)
+
+    if hasSubDirs
+    then liftM concat $ mapM (fromPhotos dirMode) fullNames
+    else if dirMode
+         then return [takeFileName dir]
+             -- Если в каталоге нет ни одного подкаталога,
+             -- значит имя каталога содержит искомый адрес.
+         else return (map takeBaseName names)
+             -- Если в каталоге нет ни одного подкаталога, значит адреса 
+             -- содержатся в непосредственном содержимом каталога.
+
 
 
 -- Извлекает адреса из таблицы отчёта в заданном файле
@@ -30,19 +52,6 @@ fromNotes file = liftM parseCSV (readFile' utf8 file)
               h <- openFile name ReadMode
               hSetEncoding h enc
               hGetContents h
-
-
-
--- Извлекает адреса из имён файлов фотографий в заданном каталоге
-fromPhotos :: String -> IO [String]
-fromPhotos dir =
-    liftM (filter (`notElem` [ ".", ".." ])) (getDirectoryContents dir)
-    >>= mapM ( \ f -> do
-                 exists <- doesDirectoryExist (dir ++ "/" ++ f)
-                 return $ if exists
-                          then f
-                          else (takeBaseName f)
-             )
 
 
 

@@ -4,11 +4,10 @@ import Graphics.UI.Gtk.Builder
 import Data.Maybe (isNothing, fromJust)
 import Data.ByteString.Char8 (pack)
 import Codec.Binary.UTF8.Light (decode)
-import Data.List (sortBy)
+import Data.List (sortBy, isInfixOf)
 import Text.Parsec.Error (ParseError)
 import Control.Exception
 import System.IO.Error (ioeGetFileName)
-import Data.List (isInfixOf)
 import Data.Char (chr)
 import Text.Regex.Posix ((=~))
 import Debug.Trace
@@ -36,7 +35,7 @@ toReadable str = replace ( str =~ "\\\\([0-9]{4})" )
           replace (before, [], [], []) = before
           replace (before, matched, after, groups) =
               let readable = chr $ read $ head groups
-              in before ++ [ readable ] ++ toReadable (after)
+              in before ++ [ readable ] ++ toReadable after
 
 
 
@@ -272,23 +271,28 @@ main = do
     photos <- builderGetObject builder castToFileChooserButton "photos"
     notes  <- builderGetObject builder castToFileChooserButton "notes"
     submit <- builderGetObject builder castToButton "submit"
+    photosDirMode <- builderGetObject builder castToComboBox "photosDirMode"
+    comboBoxSetActive photosDirMode 0 -- не удаётся задать через glade
 
     onClicked submit $ do
 
         --photosDir <- fileChooserGetFilename photos
         --notesFile <- fileChooserGetFilename notes
-        --let photosDir = Just "../samples/spb"
-        --let notesFile = Just "../samples/spb-wrong-column.csv"
+        dirMode <- liftM (== 0) (comboBoxGetActive photosDirMode)
+        --let photosDir = Just "../samples/epil"
+        --let notesFile = Just "../samples/epil.csv"
+        let photosDir = Just "../samples/spb"
+        let notesFile = Just "../samples/spb.csv"
         --let photosDir = Just "/media/b1/moscow"
         --let notesFile = Just "/media/b1/moscow.csv"
-        let photosDir = Just "/media/b1/mo"
-        let notesFile = Just "/media/b1/mo.csv"
+        --let photosDir = Just "/media/b1/mo"
+        --let notesFile = Just "/media/b1/mo.csv"
 
         if any isNothing [photosDir, notesFile]
         then alert mainWindow
                  "Нужно задать файл отчёта и каталог с фотографиями"
         else let getFileName = decode . pack . fromJust
-             in do photos <- try (extract fromPhotos $ getFileName photosDir)
+             in do photos <- try (extract (fromPhotos dirMode) $ getFileName photosDir)
                    notes  <- try (extract fromNotes  $ getFileName notesFile)
                    draw mainWindow builder photos notes
                        -- `catch` \ (e :: SomeException)

@@ -5,13 +5,12 @@ module Main.Analysis where
 import Data.Set ((\\))
 import qualified Data.Set as Set
 import Text.EditDistance
-import Data.List (sortBy, find)
+import Data.List (sortBy, find, groupBy)
 import Data.Tuple (swap)
 import Text.Parsec.Error (ParseError)
 import Data.Maybe (fromJust, isNothing)
 import Data.Either (rights)
 import Data.Char (toLower)
-import Data.List (groupBy)
 import Debug.Trace (trace)
 
 import Address.Types (Component, isRoad, getRoad)
@@ -80,7 +79,7 @@ duplicates = map (\xs -> (length xs, head xs))
 -- Формирует список не распарсенных адресов в группе
 notParsed :: [ (String, Either ParseError [Component]) ]
           -> [ (String, Either ParseError [Component]) ]
-notParsed xs = filter (isLeft . snd) xs
+notParsed = filter (isLeft . snd)
     where isLeft (Left _) = True
           isLeft _ = False
 

@@ -13,7 +13,7 @@ import qualified Address.Char as C
 
 
 parseAddr :: String -> Either ParseError [Component]
-parseAddr = either Left (Right . mergeLitera) . runParser address False ""
+parseAddr = fmap mergeLitera . runParser address False ""
     -- False — это user data, который показывает была ли уже распарсена хотя бы 
     -- раз компонента дороги. Если так, то можно трактовать номера без ключа 
     -- как номер дома.

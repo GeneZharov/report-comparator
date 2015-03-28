@@ -40,4 +40,4 @@ eol =   try (string "\n\r")
     <?> "end of line"
 
 parseCSV :: String -> Either ParseError [[String]]
-parseCSV input = parse csv "" input
+parseCSV = parse csv ""
