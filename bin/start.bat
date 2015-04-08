@@ -1,6 +1,6 @@
-REM РЎРєСЂРёРїС‚ РґР»СЏ Р·Р°РїСѓСЃРєР° СЃ РїРѕРјРѕС‰СЊСЋ runghc
+REM Скрипт для запуска с помощью runghc
 
 SET sdir=%~dp0
-pushd %sdir\..\src
+pushd %sdir:~0,-1%\..\src
 runghc Main\Main.hs
 popd

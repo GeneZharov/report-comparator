@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+
+# Распечатывает имена страниц в файле с таблицами
+# $1 — имя файла с таблицами
+
+import sys
+from xlrd import open_workbook
+
+#filename = '/root/s/zdrav/reports/2014.09.15.xlsx'
+filename = sys.argv[1]
+
+book = open_workbook(filename)
+for sheet_name in book.sheet_names():
+    print(sheet_name)

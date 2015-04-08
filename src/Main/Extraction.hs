@@ -11,10 +11,10 @@ import System.IO
 import Debug.Trace (trace)
 import Control.Exception (throwIO)
 import System.IO.Error (userError)
+import System.Process (readProcess)
 
 import Address.Main
 import Address.Types
-import ParseCSV
 
 
 -- Извлекает адреса из имён файлов внутри каталога с фотографиями. Может 
@@ -40,6 +40,7 @@ fromPhotos dirMode dir = do
 
 
 -- Извлекает адреса из таблицы отчёта в заданном файле
+{- Извлечение из CSV
 fromNotes :: String -> IO [String]
 fromNotes file = liftM parseCSV (readFile' utf8 file)
              >>= either (throwIO . userError . show) (return . pick)
@@ -52,6 +53,11 @@ fromNotes file = liftM parseCSV (readFile' utf8 file)
               h <- openFile name ReadMode
               hSetEncoding h enc
               hGetContents h
+-}
+fromNotes :: String -> Int -> String -> IO [String]
+fromNotes sheet col file = do
+    addrs <- readProcess "./spreadsheets/addresses" [file, sheet, show col] ""
+    return (lines addrs)
 
 
 

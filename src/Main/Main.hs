@@ -8,99 +8,149 @@ import Data.List (sortBy, isInfixOf)
 import Text.Parsec.Error (ParseError)
 import Control.Exception
 import System.IO.Error (ioeGetFileName)
-import Data.Char (chr)
-import Text.Regex.Posix ((=~))
+import System.Process (readProcess)
 import Debug.Trace
 
 import Main.Extraction (extract, fromNotes, fromPhotos)
 import Main.Analysis (matchedCount, duplicates, notParsed, notMatched)
+import Main.Utils (alert, format)
 import Address.Types
 
 
 
--- Создаёт попап с сообщением об ошибке
-alert :: Window -> String -> IO ()
-alert parentWindow msg = do
-    dialog <- messageDialogNew (Just parentWindow) [] MessageError ButtonsOk msg
-    onResponse dialog $ const (widgetHide dialog) -- Сокрытие по "Ok"
-    widgetShow dialog
+-- Обработчик выбора файла с табличным отчётом, обновляет меню страниц таблицы
+updateSheets :: Builder -> IO ()
+updateSheets b = do
+    file <- builderGetObject b castToFileChooserButton "notes"
+            >>= liftM fromJust . fileChooserGetFilename
+    try (readProcess "./spreadsheets/sheet-names" [file] "")
+        >>= update file
+    where update :: String -> Either IOError String -> IO ()
+
+          update file (Left parseErr) = do
+
+              -- Очищаю меню табличного отчёта
+              mainWindow <- builderGetObject b castToWindow "mainWindow"
+              notes <- builderGetObject b castToFileChooserButton "notes"
+              fileChooserUnselectAll notes
+
+              -- Очищаю меню страниц табличного отчёта
+              notesSheets <- builderGetObject b castToComboBox "notesSheets"
+              comboBoxSetModelText notesSheets
+
+              alert mainWindow (file ++ " не является электронной таблицей")
+
+          update _ (Right sheetNames) = do
+
+              -- Наполняю combobox с названиями страниц новым содержимым
+              notesSheets <- builderGetObject b castToComboBox "notesSheets"
+              comboBoxSetModelText notesSheets
+              forM_ (lines sheetNames)
+                  $ \sheet -> comboBoxAppendText notesSheets sheet
+
+              -- Первый пункт меню — активный
+              set notesSheets [comboBoxActive := 0]
 
 
 
--- Заменяет юникоды вида "\1077" в строках, которые создают функции вроде 
--- print/show на читаемые символы.
-toReadable :: String -> String
-toReadable str = replace ( str =~ "\\\\([0-9]{4})" )
-    where replace :: (String, String, String, [String]) -> String
-          replace (before, [], [], []) = before
-          replace (before, matched, after, groups) =
-              let readable = chr $ read $ head groups
-              in before ++ [ readable ] ++ toReadable after
+-- Обрабтчик клика по "Сравнить"
+compareReports :: Builder -> IO ()
+compareReports b = do
+
+    photos        <- builderGetObject b castToFileChooserButton "photos"
+    notes         <- builderGetObject b castToFileChooserButton "notes"
+    photosDirMode <- builderGetObject b castToComboBox "photosDirMode"
+    notesColumn   <- builderGetObject b castToSpinButton "notesColumn"
+    notesSheets   <- builderGetObject b castToComboBox "notesSheets"
+
+    photosDir <- fileChooserGetFilename photos
+    notesFile <- fileChooserGetFilename notes
+    dirMode   <- liftM (== 0) (comboBoxGetActive photosDirMode)
+    colNum    <- spinButtonGetValueAsInt notesColumn
+    sheetName <- liftM fromJust (comboBoxGetActiveText notesSheets)
+
+    --let photosDir = Just "../samples/epil"
+    --let notesFile = Just "../samples/epil.csv"
+    --let photosDir = Just "../samples/spb"
+    --let notesFile = Just "../samples/spb.csv"
+    --let photosDir = Just "/media/b1/moscow"
+    --let notesFile = Just "/media/b1/moscow.csv"
+    --let photosDir = Just "/media/b1/mo"
+    --let notesFile = Just "/media/b1/mo.csv"
+
+    if any isNothing [photosDir, notesFile]
+    then do
+        mainWindow <- builderGetObject b castToWindow "mainWindow"
+        alert mainWindow "Заданы не все данные"
+    else let getFileName = decode . pack . fromJust
+         in do photos <- try $ extract (fromPhotos dirMode)
+                                       (getFileName photosDir)
+               notes  <- try $ extract (fromNotes sheetName (colNum - 1))
+                                       (getFileName notesFile)
+               draw b photos notes
+                   -- `catch` \ (e :: SomeException)
+                   --        -> alert mainWindow (show e)
 
 
 
--- Приводит набор компонент адреса к читаемой строке
-format :: [ Component ] -> String
-format = init . tail     -- Обрезаю фигурные скобки
-       . map newlines . toReadable . show
-    where newlines c | c == ',' = '\n'
-          newlines c | otherwise = c
-          -- Заменяет запятую на перенос строки
-
-
-
--- draw отрисовывает результат вычислений
-draw :: Window
-     -> Builder
+-- Отрисовывает результат сопоставления отчётов
+draw :: Builder
      -> Either IOError [ (String, Either ParseError [Component]) ]
      -> Either IOError [ (String, Either ParseError [Component]) ]
      -> IO ()
 
-draw window _ (Left photosErr) _ = alert window (show photosErr)
-draw window _ _ (Left notesErr) = alert window $
-    if encErr `isInfixOf` show notesErr
-    then "Неверная кодировка файла: " ++ fromJust (ioeGetFileName notesErr)
-      ++ "\nОжидается кодировка UTF-8"
-    else "Ошибка разбора файла:\n" ++ show notesErr
-    where encErr = "hGetContents: invalid argument (invalid byte sequence)"
+draw b (Left photosErr) _ = do
+    mainWindow <- builderGetObject b castToWindow "mainWindow"
+    alert mainWindow (show photosErr)
+draw b _ (Left notesErr) = do
+    mainWindow <- builderGetObject b castToWindow "mainWindow"
+    alert mainWindow $
+        if encErr `isInfixOf` show notesErr
+        then "Неверная кодировка файла: " ++ fromJust (ioeGetFileName notesErr)
+          ++ "\nОжидается кодировка UTF-8"
+        else "Ошибка разбора файла:\n" ++ show notesErr
+        where encErr = "hGetContents: invalid argument (invalid byte sequence)"
 
-draw window builder (Right photos) (Right notes) = do
+draw b (Right photos) (Right notes) = do
 
     -- Количество адресов с парой
     let matched = matchedCount photos notes
-    drawMatched builder "photosMatched" matched
-    drawMatched builder "notesMatched" matched
+    drawMatched b "photosMatched" matched
+    drawMatched b "notesMatched" matched
     --print matched
 
     -- Адреса, которые не удалось распарсить
-    drawNotParsed builder "photosNotParsed" $ notParsed photos
-    drawNotParsed builder "notesNotParsed"  $ notParsed notes
+    drawNotParsed b "photosNotParsed" $ notParsed photos
+    drawNotParsed b "notesNotParsed"  $ notParsed notes
     --print $ notParsed photos
     --print $ notParsed notes
 
     -- Дубликаты
-    drawDuplicates builder "photosDuplicates" $ duplicates photos
-    drawDuplicates builder "notesDuplicates"  $ duplicates notes
+    drawDuplicates b "photosDuplicates" $ duplicates photos
+    drawDuplicates b "notesDuplicates"  $ duplicates notes
 
     -- Адреса без пары
-    drawNotMatched builder "photosNotMatched" $ notMatched photos notes
-    drawNotMatched builder "notesNotMatched"  $ notMatched notes photos
+    drawNotMatched b "photosNotMatched" $ notMatched photos notes
+    drawNotMatched b "notesNotMatched"  $ notMatched notes photos
     --print $ notMatched notes photos
     --print $ notMatched photos notes
 
-    when (matched == 0) $ alert window
-        "Нет ни одного совпадения адресов.\n\n\
-        \Возможно отчёты полностью отличаются \
-        \или из них неверно извлечены адреса:\n\n\
-        \• Возможно в таблице адреса лежат не в 3-й колонке;\n\n\
-        \• Возможно внутри каталога фотографий находится лишний уровень \
-        \вложенности вместо просто набора файлов/каталогов с адресами в именах;"
+    when (matched == 0) $ do
+        mainWindow <- builderGetObject b castToWindow "mainWindow"
+        alert mainWindow
+            "Нет ни одного совпадения адресов.\n\n\
+            \Возможно отчёты полностью отличаются \
+            \или из них неверно извлечены адреса:\n\n\
+            \• Возможно в таблице адреса лежат не в 3-й колонке;\n\n\
+            \• Возможно внутри каталога фотографий находится лишний уровень \
+            \вложенности вместо просто набора файлов/каталогов с адресами в \
+            \именах;"
 
 
 
 drawMatched :: Builder -> String -> Int -> IO ()
-drawMatched builder labelID count = do
-    label <- builderGetObject builder castToLabel labelID
+drawMatched b labelID count = do
+    label <- builderGetObject b castToLabel labelID
     labelSetMarkup label (show count)
 
 
@@ -110,7 +160,7 @@ drawMatched builder labelID count = do
 drawDuplicates :: Builder -> String
     -> [ (Int, (String, Either ParseError [Component])) ]
     -> IO ()
-drawDuplicates builder containerID model = do
+drawDuplicates b containerID model = do
 
     -- Создаю таблицу
     table <- tableNew (length model) 2 False
@@ -133,7 +183,7 @@ drawDuplicates builder containerID model = do
         genLabel ("— " ++ show count ++ " шт.") >>= addCell table 1 i
 
     -- Подставляю таблицу в контейнер и показываю результат
-    alignment <- builderGetObject builder castToAlignment containerID
+    alignment <- builderGetObject b castToAlignment containerID
     containerGetChildren alignment >>= mapM_ widgetDestroy
     containerAdd alignment table
     widgetShowAll table
@@ -145,7 +195,7 @@ drawDuplicates builder containerID model = do
 drawNotParsed :: Builder -> String
               -> [ (String, Either ParseError [Component]) ]
               -> IO ()
-drawNotParsed builder containerID model = do
+drawNotParsed b containerID model = do
 
     -- Создаю таблицу
     table <- tableNew (length model) 2 False
@@ -160,7 +210,7 @@ drawNotParsed builder containerID model = do
         --genLabel "Error not implemented" >>= addCell table 1 i
 
     -- Подставляю таблицу в контейнер и показываю результат
-    alignment <- builderGetObject builder castToAlignment containerID
+    alignment <- builderGetObject b castToAlignment containerID
     containerGetChildren alignment >>= mapM_ widgetDestroy
     containerAdd alignment table
     widgetShowAll table
@@ -176,7 +226,7 @@ drawNotMatched :: Builder -> String
                       Either String [(String, Int, Bool)]
                   )]
                -> IO ()
-drawNotMatched builder containerID model = do
+drawNotMatched b containerID model = do
 
     -- Создаю таблицу для адресов без пар
     table <- tableNew (length model) 2 False -- строк, столбцов, homogeneous
@@ -227,7 +277,7 @@ drawNotMatched builder containerID model = do
             addCell table 1 (i*2+1) vbox
 
     -- Подставляю таблицу в контейнер и показываю результат
-    alignment <- builderGetObject builder castToAlignment containerID
+    alignment <- builderGetObject b castToAlignment containerID
     containerGetChildren alignment >>= mapM_ widgetDestroy
     containerAdd alignment table
     widgetShowAll table
@@ -262,41 +312,23 @@ main :: IO ()
 main = do
 
     initGUI
-    builder <- builderNew
-    builderAddFromFile builder "./Main/main.glade"
-    mainWindow <- builderGetObject builder castToWindow "window1"
+    b <- builderNew
+    builderAddFromFile b "./Main/main.glade"
+    mainWindow <- builderGetObject b castToWindow "mainWindow"
     windowMaximize mainWindow
     onDestroy mainWindow mainQuit
 
-    photos <- builderGetObject builder castToFileChooserButton "photos"
-    notes  <- builderGetObject builder castToFileChooserButton "notes"
-    submit <- builderGetObject builder castToButton "submit"
-    photosDirMode <- builderGetObject builder castToComboBox "photosDirMode"
-    comboBoxSetActive photosDirMode 0 -- не удаётся задать через glade
+    -- Атрибут, который не удаётся задать через glade
+    photosDirMode <- builderGetObject b castToComboBox "photosDirMode"
+    comboBoxSetActive photosDirMode 0
 
-    onClicked submit $ do
+    -- Выбор файла с табличным отчётом обновляет меню страниц
+    notes <- builderGetObject b castToFileChooserButton "notes"
+    afterCurrentFolderChanged notes (updateSheets b)
 
-        --photosDir <- fileChooserGetFilename photos
-        --notesFile <- fileChooserGetFilename notes
-        dirMode <- liftM (== 0) (comboBoxGetActive photosDirMode)
-        --let photosDir = Just "../samples/epil"
-        --let notesFile = Just "../samples/epil.csv"
-        let photosDir = Just "../samples/spb"
-        let notesFile = Just "../samples/spb.csv"
-        --let photosDir = Just "/media/b1/moscow"
-        --let notesFile = Just "/media/b1/moscow.csv"
-        --let photosDir = Just "/media/b1/mo"
-        --let notesFile = Just "/media/b1/mo.csv"
-
-        if any isNothing [photosDir, notesFile]
-        then alert mainWindow
-                 "Нужно задать файл отчёта и каталог с фотографиями"
-        else let getFileName = decode . pack . fromJust
-             in do photos <- try (extract (fromPhotos dirMode) $ getFileName photosDir)
-                   notes  <- try (extract fromNotes  $ getFileName notesFile)
-                   draw mainWindow builder photos notes
-                       -- `catch` \ (e :: SomeException)
-                       --        -> alert mainWindow (show e)
+    -- Клик по "Сравнить"
+    submit <- builderGetObject b castToButton "submit"
+    on submit buttonActivated (compareReports b)
 
     widgetShowAll mainWindow
     mainGUI
