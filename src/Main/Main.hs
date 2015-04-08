@@ -11,9 +11,9 @@ import System.IO.Error (ioeGetFileName)
 import System.Process (readProcess)
 import Debug.Trace
 
-import Main.Extraction (extract, fromNotes, fromPhotos)
-import Main.Analysis (matchedCount, duplicates, notParsed, notMatched)
 import Main.Utils (alert, format)
+import Data.Extraction (extract, fromNotes, fromPhotos)
+import Data.Analysis (matchedCount, duplicates, notParsed, notMatched)
 import Address.Types
 
 
@@ -22,8 +22,8 @@ import Address.Types
 updateSheets :: Builder -> IO ()
 updateSheets b = do
     file <- builderGetObject b castToFileChooserButton "notes"
-            >>= liftM fromJust . fileChooserGetFilename
-    try (readProcess "./spreadsheets/sheet-names" [file] "")
+        >>= liftM fromJust . fileChooserGetFilename
+    try (readProcess "./Data/tables/sheet-names" [file] "")
         >>= update file
     where update :: String -> Either IOError String -> IO ()
 
@@ -63,20 +63,13 @@ compareReports b = do
     notesColumn   <- builderGetObject b castToSpinButton "notesColumn"
     notesSheets   <- builderGetObject b castToComboBox "notesSheets"
 
+    --let photosDir = Just "../samples/epil"
+    --let notesFile = Just "../samples/epil.csv"
     photosDir <- fileChooserGetFilename photos
     notesFile <- fileChooserGetFilename notes
     dirMode   <- liftM (== 0) (comboBoxGetActive photosDirMode)
     colNum    <- spinButtonGetValueAsInt notesColumn
     sheetName <- liftM fromJust (comboBoxGetActiveText notesSheets)
-
-    --let photosDir = Just "../samples/epil"
-    --let notesFile = Just "../samples/epil.csv"
-    --let photosDir = Just "../samples/spb"
-    --let notesFile = Just "../samples/spb.csv"
-    --let photosDir = Just "/media/b1/moscow"
-    --let notesFile = Just "/media/b1/moscow.csv"
-    --let photosDir = Just "/media/b1/mo"
-    --let notesFile = Just "/media/b1/mo.csv"
 
     if any isNothing [photosDir, notesFile]
     then do
@@ -116,7 +109,7 @@ draw b (Right photos) (Right notes) = do
     -- Количество адресов с парой
     let matched = matchedCount photos notes
     drawMatched b "photosMatched" matched
-    drawMatched b "notesMatched" matched
+    drawMatched b "notesMatched"  matched
     --print matched
 
     -- Адреса, которые не удалось распарсить
@@ -313,7 +306,7 @@ main = do
 
     initGUI
     b <- builderNew
-    builderAddFromFile b "./Main/main.glade"
+    builderAddFromFile b "./Main/Main.glade"
     mainWindow <- builderGetObject b castToWindow "mainWindow"
     windowMaximize mainWindow
     onDestroy mainWindow mainQuit

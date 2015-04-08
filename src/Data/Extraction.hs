@@ -1,5 +1,5 @@
 -- Извлечение адресов из файлов и их разбор
-module Main.Extraction where
+module Data.Extraction where
 
 
 import Control.Monad
@@ -56,7 +56,7 @@ fromNotes file = liftM parseCSV (readFile' utf8 file)
 -}
 fromNotes :: String -> Int -> String -> IO [String]
 fromNotes sheet col file = do
-    addrs <- readProcess "./spreadsheets/addresses" [file, sheet, show col] ""
+    addrs <- readProcess "./Data/tables/addresses" [file, sheet, show col] ""
     return (lines addrs)
 
 

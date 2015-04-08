@@ -1,4 +1,4 @@
-module Main.Analysis where
+module Data.Analysis where
 
 
 
@@ -17,7 +17,7 @@ import Address.Types (Component, isRoad, getRoad)
 
 
 
--- Нечёткий поиск подстроки.
+-- Нечёткий поиск подстроки
 --
 -- Разбивает образец и проверяемую строку на слова. Далее слова образца 
 -- сцепляет вместе, чтобы нормализовать пробелы. А из слов проверяемой строки 
@@ -31,25 +31,20 @@ import Address.Types (Component, isRoad, getRoad)
 --     "c d e"
 -- После этого применяет алгоритм Дамерау-Левенштейна образцу и каждому из 
 -- словосочетаний. Возвращает минимальное из получившихся расстояний.
-
 linearSearch :: String -> String -> Int
 linearSearch pattern testing = minimum $ map (distance pattern') testing'
-    where
-
-        distance = restrictedDamerauLevenshteinDistance defaultEditCosts
-
-        -- Нормализую пробелы
-        pattern' = unwords (words pattern)
-
-        -- Собираю возможные комбинации слов из проверяемой строки с тем же 
-        -- количеством слов, что и в образце.
-        testing' = flip map [0..v] $ \i -> unwords $ slice i p (words testing)
-            where p = length (words pattern)
-                  t = length (words testing)
-                  v = notNegative $ t - (p - 1) -- количество комбинаций слов
-                      where notNegative n | n < 0 = 0
-                            notNegative n | otherwise = n
-                  slice a b = take b . drop a
+  where
+    distance = restrictedDamerauLevenshteinDistance defaultEditCosts
+    pattern' = unwords (words pattern) -- нормализую пробелы
+    testing' = flip map [0..v] $ \i -> unwords $ slice i p (words testing)
+        -- Собираю возможные комбинации слов из проверяемой строки
+        -- с тем же количеством слов, что и в образце.
+        where p = length (words pattern)
+              t = length (words testing)
+              v = notNegative $ t - (p - 1) -- количество комбинаций слов
+                  where notNegative n | n < 0 = 0
+                        notNegative n | otherwise = n
+              slice a b = take b . drop a
 
 
 
