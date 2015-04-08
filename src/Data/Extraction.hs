@@ -11,10 +11,26 @@ import System.IO
 import Debug.Trace (trace)
 import Control.Exception (throwIO)
 import System.IO.Error (userError)
-import System.Process (readProcess)
+import System.Environment (getEnvironment)
+import System.Process
 
 import Address.Main
 import Address.Types
+
+
+-- Утилита для получения стандартного вывода из дочернего процесса. Создавалась 
+-- специально для питона, чтобы принудить его писать в utf-8, так как в windows 
+-- питон сбоит из-за того, что не умеет писать в дефолтной системной кодировке.
+pythonStdout :: CreateProcess -> IO String
+pythonStdout conf = do
+    env <- getEnvironment
+    (_, Just outH, _, _) <- createProcess conf
+        {
+            std_out = CreatePipe
+        ,   env = Just (("PYTHONIOENCODING", "utf_8"):env)
+        }
+    hSetEncoding outH utf8
+    hGetContents outH
 
 
 -- Извлекает адреса из имён файлов внутри каталога с фотографиями. Может 
@@ -55,9 +71,8 @@ fromNotes file = liftM parseCSV (readFile' utf8 file)
               hGetContents h
 -}
 fromNotes :: String -> Int -> String -> IO [String]
-fromNotes sheet col file = do
-    addrs <- readProcess "./Data/tables/addresses" [file, sheet, show col] ""
-    return (lines addrs)
+fromNotes sheet col file = liftM lines $ pythonStdout
+    (proc "python" ["./Data/tables/addresses", file, sheet, show col])
 
 
 

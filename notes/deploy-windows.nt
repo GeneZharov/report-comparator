@@ -8,6 +8,12 @@
    почему именно.
 
 
+Установка python3
+   http://python.org
+   cmd.exe
+      pip install xlrd
+
+
 Установка с правами админа GTK+ 2 all-in-one bundle 32-разрядный
    Распакуй в путь без пробелов.
    Добавь каталог bin в %PATH%

@@ -121,7 +121,7 @@ notMatched xs ys =
             x                          -- Распарсенные компоненты
             (let road = find isRoad x  -- Список похожих альтернатив
              in if isNothing road
-                then Left "В адресе нет имени дороги!"
+                then Left "В адресе нет названия дороги!"
                 else Right
                    $ sortBy (\ (_,x,_) (_,y,_) -> compare x y)
                    $ filter (\ (_,x,_) -> x < 3 )

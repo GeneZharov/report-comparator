@@ -4,6 +4,7 @@
 # $1 — имя файла с таблицами
 
 import sys
+import os
 from xlrd import open_workbook
 
 #filename = '/root/s/zdrav/reports/2014.09.15.xlsx'

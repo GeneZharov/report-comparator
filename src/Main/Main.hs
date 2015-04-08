@@ -8,11 +8,12 @@ import Data.List (sortBy, isInfixOf)
 import Text.Parsec.Error (ParseError)
 import Control.Exception
 import System.IO.Error (ioeGetFileName)
-import System.Process (readProcess)
+import Data.Ord (comparing)
+import System.Process (proc)
 import Debug.Trace
 
-import Main.Utils (alert, format)
-import Data.Extraction (extract, fromNotes, fromPhotos)
+import Main.Utils
+import Data.Extraction (pythonStdout, extract, fromNotes, fromPhotos)
 import Data.Analysis (matchedCount, duplicates, notParsed, notMatched)
 import Address.Types
 
@@ -23,7 +24,7 @@ updateSheets :: Builder -> IO ()
 updateSheets b = do
     file <- builderGetObject b castToFileChooserButton "notes"
         >>= liftM fromJust . fileChooserGetFilename
-    try (readProcess "./Data/tables/sheet-names" [file] "")
+    try (pythonStdout (proc "python" ["./Data/tables/sheet-names", file]))
         >>= update file
     where update :: String -> Either IOError String -> IO ()
 
@@ -38,7 +39,9 @@ updateSheets b = do
               notesSheets <- builderGetObject b castToComboBox "notesSheets"
               comboBoxSetModelText notesSheets
 
-              alert mainWindow (file ++ " не является электронной таблицей")
+              alert mainWindow $
+                "Не удалось открыть электронную таблицу:\n" ++ file
+                ++ "\n\n" ++ show parseErr
 
           update _ (Right sheetNames) = do
 
@@ -106,29 +109,45 @@ draw b _ (Left notesErr) = do
 
 draw b (Right photos) (Right notes) = do
 
-    -- Количество адресов с парой
-    let matched = matchedCount photos notes
-    drawMatched b "photosMatched" matched
-    drawMatched b "notesMatched"  matched
-    --print matched
+    let bothMatched      = matchedCount photos notes
+    let photosDuplicates = duplicates   photos
+    let photosNotParsed  = notParsed    photos
+    let photosNotMatched = notMatched   photos notes
+    let notesDuplicates  = duplicates   notes
+    let notesNotParsed   = notParsed    notes
+    let notesNotMatched  = notMatched   notes  photos
+
+    -- Количество адресов каждого типа
+    drawStat b "photosStat"
+        (length photos)
+        bothMatched
+        (length photosDuplicates)
+        (length photosNotParsed)
+        (length photosNotMatched)
+    drawStat b "notesStat"
+        (length notes)
+        bothMatched
+        (length notesDuplicates)
+        (length notesNotParsed)
+        (length notesNotMatched)
 
     -- Адреса, которые не удалось распарсить
-    drawNotParsed b "photosNotParsed" $ notParsed photos
-    drawNotParsed b "notesNotParsed"  $ notParsed notes
-    --print $ notParsed photos
-    --print $ notParsed notes
+    drawNotParsed b "photosNotParsed" photosNotParsed
+    drawNotParsed b "notesNotParsed"  notesNotParsed
+    --print photosNotParsed
+    --print notesNotParsed
 
     -- Дубликаты
-    drawDuplicates b "photosDuplicates" $ duplicates photos
-    drawDuplicates b "notesDuplicates"  $ duplicates notes
+    drawDuplicates b "photosDuplicates" photosDuplicates
+    drawDuplicates b "notesDuplicates"  notesDuplicates
 
     -- Адреса без пары
-    drawNotMatched b "photosNotMatched" $ notMatched photos notes
-    drawNotMatched b "notesNotMatched"  $ notMatched notes photos
-    --print $ notMatched notes photos
-    --print $ notMatched photos notes
+    drawNotMatched b "photosNotMatched" photosNotMatched
+    drawNotMatched b "notesNotMatched"  notesNotMatched
+    --print notesNotMatched
+    --print photosNotMatched
 
-    when (matched == 0) $ do
+    when (bothMatched == 0) $ do
         mainWindow <- builderGetObject b castToWindow "mainWindow"
         alert mainWindow
             "Нет ни одного совпадения адресов.\n\n\
@@ -138,6 +157,28 @@ draw b (Right photos) (Right notes) = do
             \• Возможно внутри каталога фотографий находится лишний уровень \
             \вложенности вместо просто набора файлов/каталогов с адресами в \
             \именах;"
+
+
+
+drawStat :: Builder -> String -> Int -> Int -> Int -> Int -> Int -> IO ()
+drawStat b containerID total matched duplicates notParsed notMatched =
+    let stat = zip [0..]
+             . filter ( (>0) . fst )
+             . sortBy (flip (comparing fst))
+             $ [
+                   ( total      , "— всего" )
+               ,   ( matched    , "— есть соответствия" )
+               ,   ( duplicates , "— дубликаты" )
+               ,   ( notParsed  , "— не поддаются анализу" )
+               ,   ( notMatched , "— нет соответствий" )
+               ]
+    in do
+        table <- builderGetObject b castToTable containerID
+        destroyChildren table
+        forM_ stat $ \(i, (num, text)) -> do
+            genLabel (show num) >>= addCell table 0 i
+            genLabel text       >>= addCell table 1 i
+        widgetShowAll table
 
 
 
@@ -162,7 +203,9 @@ drawDuplicates b containerID model = do
     tableSetColSpacing table 0 7 -- номер колонки, количество пикселей
 
     -- Наполняю таблицу строками
-    forM_ (zip [0..] model) $ \ (i, (count, (src, Right comps))) -> do
+    if null model
+    then genLabel (italicMeta "Пусто") >>= addCell table 0 0
+    else forM_ (zip [0..] model) $ \ (i, (count, (src, Right comps))) -> do
 
         -- Ячейка с текстом адреса
         srcLabel <- genLabel src
@@ -177,7 +220,7 @@ drawDuplicates b containerID model = do
 
     -- Подставляю таблицу в контейнер и показываю результат
     alignment <- builderGetObject b castToAlignment containerID
-    containerGetChildren alignment >>= mapM_ widgetDestroy
+    destroyChildren alignment
     containerAdd alignment table
     widgetShowAll table
 
@@ -196,15 +239,17 @@ drawNotParsed b containerID model = do
     tableSetRowSpacings table 7
 
     -- Наполняю таблицу строками
-    forM_ (zip [0..] model) $ \ (i, addr) -> do
-        label <- genLabel (fst addr)
-        labelSetSelectable label True
-        addCell table 0 i label
-        --genLabel "Error not implemented" >>= addCell table 1 i
+    if null model
+    then genLabel (italicMeta "Пусто") >>= addCell table 0 0
+    else forM_ (zip [0..] model) $ \ (i, addr) -> do
+            label <- genLabel (fst addr)
+            labelSetSelectable label True
+            addCell table 0 i label
+            --genLabel "Error not implemented" >>= addCell table 1 i
 
     -- Подставляю таблицу в контейнер и показываю результат
     alignment <- builderGetObject b castToAlignment containerID
-    containerGetChildren alignment >>= mapM_ widgetDestroy
+    destroyChildren alignment
     containerAdd alignment table
     widgetShowAll table
 
@@ -230,7 +275,9 @@ drawNotMatched b containerID model = do
     genLabel (meta "Похожие из другой группы адресов" )  >>= addCell table 1 0
 
     -- Генерю строки с адресами, которым не нашлось пары
-    forM_ (zip model [1..]) $ \ ((addr, comps, options), i) -> do
+    if null model
+    then genLabel (italicMeta "Пусто") >>= addCell table 0 0
+    else forM_ (zip model [1..]) $ \ ((addr, comps, options), i) -> do
 
         -- Линия-разделитель
         separator <- hSeparatorNew
@@ -271,7 +318,7 @@ drawNotMatched b containerID model = do
 
     -- Подставляю таблицу в контейнер и показываю результат
     alignment <- builderGetObject b castToAlignment containerID
-    containerGetChildren alignment >>= mapM_ widgetDestroy
+    destroyChildren alignment
     containerAdd alignment table
     widgetShowAll table
 
@@ -279,25 +326,6 @@ drawNotMatched b containerID model = do
           isLeft (Right _) = False
           fromLeft (Left x)   = x
           fromRight (Right x) = x
-          meta text = "<span fgcolor=\"#6D6D6D\" \
-                      \>" ++ text ++ "</span>"
-          italicMeta text = "<span fgcolor=\"#6D6D6D\" \
-                                 \ style=\"italic\" \
-                            \>" ++ text ++ "</span>"
-
-
-
-genLabel text = do
-    label <- labelNew Nothing
-    miscSetAlignment label  0 0
-    labelSetMarkup label text
-    return label
-
-addCell table x y widget = tableAttach table widget
-    x (x+1)       -- Колонка слева/справа
-    y (y+1)       -- Строка сверху/снизу
-    [Fill] [Fill] -- Horizontal/vertical resizing
-    0 0           -- padding горизонтальный/вертикальный
 
 
 

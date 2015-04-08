@@ -12,7 +12,8 @@ import Address.Types
 alert :: Window -> String -> IO ()
 alert parentWin msg = do
     dialog <- messageDialogNew (Just parentWin) [] MessageError ButtonsOk msg
-    onResponse dialog $ const (widgetHide dialog) -- Сокрытие по "Ok"
+    set dialog [windowTitle := "Ошибка" ]
+    onResponse dialog $ const (widgetHide dialog) -- сокрытие по "Ok"
     widgetShow dialog
 
 
@@ -34,3 +35,35 @@ format = init . tail     -- Обрезаю фигурные скобки
     where newlines c | c == ',' = '\n'
           newlines c = c
           -- Заменяет запятую на перенос строки
+
+
+genLabel :: String -> IO Label
+genLabel text = do
+    label <- labelNew Nothing
+    miscSetAlignment label  0 0
+    labelSetMarkup label text
+    return label
+
+
+addCell table x y widget =
+    tableAttach table widget
+        x (x+1)       -- колонка слева/справа
+        y (y+1)       -- строка сверху/снизу
+        [Fill] [Fill] -- horizontal/vertical resizing
+        0 0           -- padding горизонтальный/вертикальный
+
+
+-- Удаляет содержимое контейнера
+destroyChildren container =
+    containerGetChildren container >>= mapM_ widgetDestroy
+
+
+
+meta text =
+    "<span fgcolor=\"#6D6D6D\" \
+    \>" ++ text ++ "</span>"
+
+
+italicMeta text =
+    "<span fgcolor=\"#6D6D6D\" style=\"italic\" \
+    \>" ++ text ++ "</span>"
