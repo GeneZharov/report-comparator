@@ -1,6 +1,4 @@
-REM Скрипт для запуска с помощью runghc
+REM РјРѕР¶РЅРѕ Р·Р°РјРµРЅРёС‚СЊ СЌС‚РѕС‚ РїР°РєРµС‚РЅС‹Р№ С„Р°Р№Р» РЅР° СЏСЂР»С‹Рє
 
 SET sdir=%~dp0
-pushd %sdir:~0,-1%\..\src
-runghc Main\Main.hs
-popd
+%sdir:~0,-1%\..\.cabal-sandbox\bin\comparator.exe

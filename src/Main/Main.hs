@@ -12,6 +12,7 @@ import Data.Ord (comparing)
 import System.Process (proc)
 import Debug.Trace
 
+import Paths_report_comparator
 import Main.Utils
 import Data.Extraction (pythonStdout, extract, fromNotes, fromPhotos)
 import Data.Analysis (matchedCount, duplicates, notParsed, notMatched)
@@ -153,10 +154,9 @@ draw b (Right photos) (Right notes) = do
             "Нет ни одного совпадения адресов.\n\n\
             \Возможно отчёты полностью отличаются \
             \или из них неверно извлечены адреса:\n\n\
-            \• Возможно в таблице адреса лежат не в 3-й колонке;\n\n\
-            \• Возможно внутри каталога фотографий находится лишний уровень \
-            \вложенности вместо просто набора файлов/каталогов с адресами в \
-            \именах;"
+            \• Возможно адреса в таблице лежат в другой колонке;\n\n\
+            \• Возможно надо воспользоваться переключателем типа файлов, из \
+            \которых извлекаются адреса фотоотчёта;"
 
 
 
@@ -334,7 +334,7 @@ main = do
 
     initGUI
     b <- builderNew
-    builderAddFromFile b "./Main/Main.glade"
+    getDataFileName "main.glade" >>= builderAddFromFile b
     mainWindow <- builderGetObject b castToWindow "mainWindow"
     windowMaximize mainWindow
     onDestroy mainWindow mainQuit

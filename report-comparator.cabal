@@ -1,0 +1,35 @@
+name:                report-comparator
+version:             0.1.0
+synopsis:            ...
+homepage:            https://github.com/kahless/report-comparator
+license:             MIT
+license-file:        LICENSE
+author:              Yevgeny Zharov
+maintainer:          krantadan@mail.ru
+category:            Network
+
+build-type:          Simple
+extra-source-files:  README.nt
+cabal-version:       >=1.10
+
+data-dir:            data
+data-files:          main.glade
+
+
+executable comparator
+  default-language: Haskell2010
+  hs-source-dirs: src
+  main-is: Main/Main.hs
+  build-depends:
+    base,
+    gtk >= 0.12 && < 0.13,
+    bytestring,
+    utf8-light,
+    edit-distance,
+    regex-posix,
+    parsec,
+    containers,
+    process,
+    directory,
+    filepath,
+    russian-address-parser

@@ -43,7 +43,7 @@ linearSearch pattern testing = minimum $ map (distance pattern') testing'
               t = length (words testing)
               v = notNegative $ t - (p - 1) -- количество комбинаций слов
                   where notNegative n | n < 0 = 0
-                        notNegative n | otherwise = n
+                                      | otherwise = n
               slice a b = take b . drop a
 
 

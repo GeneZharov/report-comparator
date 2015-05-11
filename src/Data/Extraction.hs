@@ -3,7 +3,6 @@ module Data.Extraction where
 
 
 import Control.Monad
-import Text.Regex.PCRE ((=~))
 import System.FilePath (takeFileName, takeBaseName)
 import System.Directory (getDirectoryContents, doesDirectoryExist)
 import Text.Parsec.Error (ParseError)
