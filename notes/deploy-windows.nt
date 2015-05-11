@@ -1,6 +1,3 @@
-──── Установка программы в Windows
-
-
 С 64-разрядным GTK не завелось. После запуска программа сообщает, что ей нужна 
    более новая версия gtk, поэтому пришлось ставить 32-разрядную версию, потому 
    что она подходила по версии под это требоание.
@@ -8,65 +5,25 @@
    почему именно.
 
 
-Установка python3
-   http://python.org
-   cmd.exe
-      pip install xlrd
+Установка с правами администратора:
+
+   python3
+      http://python.org
+      cmd.exe
+         pip install xlrd
+
+   GTK+ 2 all-in-one bundle 32-разрядный
+      Распакуй в путь без пробелов.
+      Добавь каталог bin в %PATH%
+      Проверь, что работает из cmd.exe:
+         pkg-config --cflags gtk+-2.0
+
+   Haskell Platform 32-разрядную
+
+   git
+      git-scm.com/download/win
+      Выбирай "Use Git from the Windows Command Prompt"
 
 
-Установка с правами админа GTK+ 2 all-in-one bundle 32-разрядный
-   Распакуй в путь без пробелов.
-   Добавь каталог bin в %PATH%
-   Проверь, что работает из cmd.exe:
-      pkg-config --cflags gtk+-2.0
-
-
-Установка с правами админа Haskell Platform 32-разрядную
-
-
-Установка пакетов из cabal от обычного пользователя
-   cmd.exe (с админскими правами на всякий случай)
-      │ После правки PATH, нужно перезагрузить терминал
-
-   cabal update
-
-   cabal install directory
-   cabal install parsec
-   cabal install edit-distance
-   cabal install bytestring
-   cabal install regex-pcre-builtin
-   cabal install utf8-light
-
-   ━━━━ GTK 2
-
-   │ Сначала устанавливаю зависимости gtk, которые почему-то не ставятся сами.
-   │ Возможно в этот список нужно включить ещё какой-то из пакетов выше.
-   cabal install gtk2hs-buildtools
-
-   # gtk2
-      cabal install gtk-0.12.5.7 -f-fmode-binary
-      │ Без ключа fmode не будет импортироваться пакет.
-      │ Если не задать версию, то поставит версию для gtk3.
-
-   # gtk3
-      cabal install gtk -f-fmode-binary
-         Без этого ключа не запускается
-
-   Пришлось убить дубликат bytestring по этому методу:
-      http://stackoverflow.com/questions/21272056/resolving-ghc-i-found-a-duplicate-definition-for-symbol
-
-      Узнаю какие версии проблемного пакет установлены:
-         ghc-pkg describe bytestring
-            0.10.4.1
-            0.10.4.0
-      Узнаю какие пакеты зависят от каждой версии:
-         ghc-pkg unregister bytestring-0.10.4.0
-         ghc-pkg unregister bytestring-0.10.4.1
-            Только один пакет зависит от этой версии. Буду эту версию удалять. 
-            Запомни названия пакетов, которые сломаются.
-
-      Удаляю одну из версий:
-         ghc-pkg unregister bytestring-0.10.4.1 --force
-
-      Переустанавливаю сломавшиеся пакеты:
-         cabal install utf8-light
+С правами обычного пользователя:
+   bin\install.bat

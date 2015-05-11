@@ -33,3 +33,6 @@ executable comparator
     directory,
     filepath,
     russian-address-parser
+    -- Ставлю последнюю из доступных не замаскированных версий, которая 
+    -- поддерживает gtk2. Версия 3.18.3 уже не поддерживает gtk2, а 
+    -- поддерживает gtk3.
