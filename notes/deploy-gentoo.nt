@@ -8,6 +8,9 @@ dev-util/glade-3.8.5
 
 dev-python/xlrd
 
+dev-haskell/gtk2hs-buildtools
+   Это нужно во время сборки dev-haskell/gtk, но не уверен, что я ставил это 
+   руками. Скорее всего тут всё правильно.
 
 
 ──── Не актуально
@@ -20,6 +23,3 @@ dev-haskell/gtk-0.12.4-r1
 
 dev-haskell/glade — Binding to the glade library
    Без этой либы не получится считать из хаскеля glade-файл.
-
-dev-haskell/gtk2hs-buildtools
-   Это нужно для dev-haskell/gtk, но не уверен, что я ставил это руками.

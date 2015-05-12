@@ -123,8 +123,8 @@ notMatched xs ys =
              in if isNothing road
                 then Left "В адресе нет названия дороги!"
                 else Right
-                   $ sortBy (\ (_,x,_) (_,y,_) -> compare x y)
-                   $ filter (\ (_,x,_) -> x < 3 )
+                   $ sortBy (\ (_,x,_) (_,y,_) -> compare y x)
+                   $ filter (\ (_,x,_) -> x < 4 )
                    $ for ys (\ (yStr, y) ->
                        ( yStr
                        , linearSearchIC (getRoad $ fromJust road) yStr

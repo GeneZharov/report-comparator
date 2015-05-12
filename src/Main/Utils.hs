@@ -4,6 +4,9 @@ module Main.Utils where
 import Graphics.UI.Gtk
 import Data.Char (chr)
 import Text.Regex.TDFA
+import Data.ByteString.Char8 (pack)
+import Codec.Binary.UTF8.Light (decode)
+import Data.Maybe (fromJust)
 
 import Address.Types
 
@@ -56,6 +59,15 @@ addCell table x y widget =
 -- Удаляет содержимое контейнера
 destroyChildren container =
     containerGetChildren container >>= mapM_ widgetDestroy
+
+
+
+getFileName :: Maybe FilePath -> String
+getFileName = decode . pack . fromJust
+    -- dev-haskell/gtk-0.12.4 имеет проблему кодировки при получении имени 
+    -- файла из GtkFileChooserButton. Похоже, что она использует UTF-8 вместо 
+    -- встроенной в хаскель юникодной кодировки. Поэтому использую специальный 
+    -- хак для извлечения текста.
 
 
 

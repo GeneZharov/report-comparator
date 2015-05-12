@@ -3,6 +3,8 @@ pushd %sdir:~0,-1%\..
 
 git pull
 pushd parser & git pull & popd
+
+cabal update
 cabal install
 
 popd

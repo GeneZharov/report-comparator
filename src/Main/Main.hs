@@ -2,8 +2,6 @@ import Control.Monad
 import Graphics.UI.Gtk
 import Graphics.UI.Gtk.Builder
 import Data.Maybe (isNothing, fromJust)
-import Data.ByteString.Char8 (pack)
-import Codec.Binary.UTF8.Light (decode)
 import Data.List (sortBy, isInfixOf)
 import Text.Parsec.Error (ParseError)
 import Control.Exception
@@ -25,7 +23,7 @@ updateSheets :: Builder -> IO ()
 updateSheets b = do
     py <- getDataFileName "tables/sheet-names"
     file <- builderGetObject b castToFileChooserButton "notes"
-        >>= liftM fromJust . fileChooserGetFilename
+        >>= liftM getFileName . fileChooserGetFilename
     try (pythonStdout (proc "python" [py, file])) >>= update file
     where update :: String -> Either IOError String -> IO ()
 
@@ -79,14 +77,13 @@ compareReports b = do
     then do
         mainWindow <- builderGetObject b castToWindow "mainWindow"
         alert mainWindow "Заданы не все данные"
-    else let getFileName = decode . pack . fromJust
-         in do photos <- try $ extract (fromPhotos dirMode)
-                                       (getFileName photosDir)
-               notes  <- try $ extract (fromNotes sheetName (colNum - 1))
-                                       (getFileName notesFile)
-               draw b photos notes
-                   -- `catch` \ (e :: SomeException)
-                   --        -> alert mainWindow (show e)
+    else do photos <- try $ extract (fromPhotos dirMode)
+                                    (getFileName photosDir)
+            notes  <- try $ extract (fromNotes sheetName (colNum - 1))
+                                    (getFileName notesFile)
+            draw b photos notes
+                -- `catch` \ (e :: SomeException)
+                --        -> alert mainWindow (show e)
 
 
 
@@ -300,10 +297,7 @@ drawNotMatched b containerID model = do
             addCell table 1 (i*2+1) errorLabel
         else do
             vbox <- vBoxNew True 7 -- homogeneous, spacing
-            let sorted = flip sortBy (fromRight options)
-                         $ \ (_, a, _) (_, b, _) -> compare a b
-                         -- Сортирую по количеству ошибок
-            forM_ sorted $ \ (addr, fit, matched) -> do
+            forM_ (fromRight options) $ \ (addr, fit, matched) -> do
                 -- Генерю одну из альтернатив
                 hbox <- hBoxNew False 7
                 boxSetHomogeneous hbox False

@@ -28,6 +28,4 @@
 
 С правами обычного пользователя:
    git clone https://github.com/kahless/report-comparator
-
-   cabal update
    bin\install.bat
