@@ -55,9 +55,9 @@ fromPhotos dirMode dir = do
              -- содержатся в непосредственном содержимом каталога.
 
     where cropCopy name = name'
-              where (name', _, _) = name =~ " ([[:digit:]]+)\
-                                           \| - Copy ([[:digit:]]+)\
-                                           \| - Копия ([[:digit:]]+)"
+              where (name', _, _) = name =~ " \\([[:digit:]]+\\)\
+                                           \| - Copy \\([[:digit:]]+\\)\
+                                           \| - Копия \\([[:digit:]]+\\)"
                                            :: (String, String, String)
 
 
