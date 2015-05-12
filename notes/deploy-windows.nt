@@ -7,11 +7,6 @@
 
 Установка с правами администратора:
 
-   python3
-      http://python.org
-      cmd.exe
-         pip install xlrd
-
    GTK+ 2 all-in-one bundle 32-разрядный
       Распакуй в путь без пробелов.
       Добавь каталог bin в %PATH%
@@ -20,11 +15,19 @@
 
    Haskell Platform 32-разрядную
 
+   python3
+      http://python.org
+      Для удобства не забудь опцию "добавить python.exe в PATH"
+
    git
-      git-scm.com/download/win
+      https://git-scm.com/download/win
       Выбирай "Use Git from the Windows Command Prompt"
+
+   pip install xlrd
 
 
 С правами обычного пользователя:
-   pip install xlrd
+   git clone https://github.com/kahless/report-comparator
+
+   cabal update
    bin\install.bat
