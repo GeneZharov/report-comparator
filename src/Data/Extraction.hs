@@ -12,7 +12,9 @@ import Control.Exception (throwIO)
 import System.IO.Error (userError)
 import System.Environment (getEnvironment)
 import System.Process
+import Text.Regex.TDFA
 
+import Paths_report_comparator
 import Address.Main
 import Address.Types
 
@@ -48,9 +50,15 @@ fromPhotos dirMode dir = do
          then return [takeFileName dir]
              -- Если в каталоге нет ни одного подкаталога,
              -- значит имя каталога содержит искомый адрес.
-         else return (map takeBaseName names)
+         else return $ map (cropCopy . takeBaseName) names
              -- Если в каталоге нет ни одного подкаталога, значит адреса 
              -- содержатся в непосредственном содержимом каталога.
+
+    where cropCopy name = name'
+              where (name', _, _) = name =~ " ([[:digit:]]+)\
+                                           \| - Copy ([[:digit:]]+)\
+                                           \| - Копия ([[:digit:]]+)"
+                                           :: (String, String, String)
 
 
 
@@ -70,8 +78,9 @@ fromNotes file = liftM parseCSV (readFile' utf8 file)
               hGetContents h
 -}
 fromNotes :: String -> Int -> String -> IO [String]
-fromNotes sheet col file = liftM lines $ pythonStdout
-    (proc "python" ["./Data/tables/addresses", file, sheet, show col])
+fromNotes sheet col file = do
+    py <- getDataFileName "tables/addresses"
+    liftM lines $ pythonStdout (proc "python" [py, file, sheet, show col])
 
 
 

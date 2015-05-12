@@ -3,7 +3,7 @@ module Main.Utils where
 
 import Graphics.UI.Gtk
 import Data.Char (chr)
-import Text.Regex.Posix ((=~))
+import Text.Regex.TDFA
 
 import Address.Types
 

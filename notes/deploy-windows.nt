@@ -26,4 +26,5 @@
 
 
 С правами обычного пользователя:
+   pip install xlrd
    bin\install.bat

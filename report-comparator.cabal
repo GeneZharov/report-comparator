@@ -13,7 +13,9 @@ extra-source-files:  README.nt
 cabal-version:       >=1.10
 
 data-dir:            data
-data-files:          main.glade
+data-files:          main.glade,
+                     tables/addresses,
+                     tables/sheet-names
 
 
 executable comparator
@@ -26,7 +28,7 @@ executable comparator
     bytestring,
     utf8-light,
     edit-distance,
-    regex-posix,
+    regex-tdfa,
     parsec,
     containers,
     process,

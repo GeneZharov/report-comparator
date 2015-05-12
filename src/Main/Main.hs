@@ -23,10 +23,10 @@ import Address.Types
 -- Обработчик выбора файла с табличным отчётом, обновляет меню страниц таблицы
 updateSheets :: Builder -> IO ()
 updateSheets b = do
+    py <- getDataFileName "tables/sheet-names"
     file <- builderGetObject b castToFileChooserButton "notes"
         >>= liftM fromJust . fileChooserGetFilename
-    try (pythonStdout (proc "python" ["./Data/tables/sheet-names", file]))
-        >>= update file
+    try (pythonStdout (proc "python" [py, file])) >>= update file
     where update :: String -> Either IOError String -> IO ()
 
           update file (Left parseErr) = do
