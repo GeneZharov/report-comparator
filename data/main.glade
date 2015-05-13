@@ -65,7 +65,7 @@
                     <property name="active">0</property>
                     <items>
                       <item translatable="yes">каталогов</item>
-                      <item translatable="yes">обычных фалйов</item>
+                      <item translatable="yes">обычных файлов</item>
                     </items>
                   </object>
                   <packing>
@@ -227,6 +227,12 @@
                             <property name="n_columns">2</property>
                             <property name="column_spacing">5</property>
                             <property name="row_spacing">5</property>
+                            <child>
+                              <placeholder/>
+                            </child>
+                            <child>
+                              <placeholder/>
+                            </child>
                             <child>
                               <placeholder/>
                             </child>
@@ -397,6 +403,12 @@
                             <property name="n_columns">2</property>
                             <property name="column_spacing">5</property>
                             <property name="row_spacing">5</property>
+                            <child>
+                              <placeholder/>
+                            </child>
+                            <child>
+                              <placeholder/>
+                            </child>
                             <child>
                               <placeholder/>
                             </child>
