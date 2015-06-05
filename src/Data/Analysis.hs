@@ -21,8 +21,8 @@ import Address.Types (Component, isRoad, getRoad)
 --
 -- Разбивает образец и проверяемую строку на слова. Далее слова образца 
 -- сцепляет вместе, чтобы нормализовать пробелы. А из слов проверяемой строки 
--- сооружает множество словосечетаний длиной, но чтобы количество слов в них не 
--- превышало таковое в образце. Например для:
+-- сооружает множество словосечетаний, чтобы количество слов в них не превышало 
+-- таковое в образце. Например для:
 --     pattern = "a b c"
 --     testing = "a b c d e"
 -- Будут комбинации:
@@ -100,7 +100,7 @@ notMatched xs ys =
 
     let
 
-        -- Множества разобранных адресов.
+        -- Множества разобранных адресов
         -- С ними будет удобно работать комбинаторами из пакета Data.Set
         toSet = Set.fromList . rights . snd . unzip
         xSet  = toSet xs
@@ -119,27 +119,41 @@ notMatched xs ys =
         (\ x -> (,,)
             (fromJust $ rlookup x xs') -- Строка с адресом
             x                          -- Распарсенные компоненты
-            (let road = find isRoad x  -- Список похожих альтернатив
-             in if isNothing road
-                then Left "В адресе нет названия дороги!"
-                else Right
-                   $ sortBy (\ (_,x,_) (_,y,_) -> compare y x)
-                   $ filter (\ (_,x,_) -> x < 4 )
-                   $ for ys (\ (yStr, y) ->
-                       ( yStr
-                       , linearSearchIC (getRoad $ fromJust road) yStr
-                       , either
-                             (const False)
-                             (`elem` Set.toList intersection)
-                             y
-                       )
-                   )
+            (
+              case find isRoad x of
+                Nothing -> Left "В адресе нет названия дороги!"
+                Just road
+                  | road' <- getRoad road
+                  , max   <- maxDistance road'
+                  -> Right
+                     $ sortBy (\ (_,x,_) (_,y,_) -> compare y x)
+                     $ filter (\ (_,x,_) -> x < max )
+                     $ for ys (\ (yStr, y) ->
+                        ( yStr
+                        , linearSearchIC road' yStr
+                        , either
+                           (const False)
+                           (`elem` Set.toList intersection)
+                           y
+                        )
+                     )
             )
         )
 
-    where for = flip map
-          rlookup x = lookup x . map swap
-          isRight (Right _) = True
-          isRight _         = False
-          linearSearchIC a b = linearSearch (map toLower a) (map toLower b)
-              -- Регистронезависимый поиск подстроки
+    where
+
+        for = flip map
+        rlookup x = lookup x . map swap
+        isRight (Right _) = True
+        isRight _         = False
+        linearSearchIC a b = linearSearch (map toLower a) (map toLower b)
+            -- Регистронезависимый поиск подстроки
+
+        -- Допустимое количество ошибок, при которых адреса считаются похожими.
+        -- Зависит от длины шаблона.
+        maxDistance :: String -> Int
+        maxDistance p -- pattern
+           | length p <= 2 = 0
+           | length p <= 4 = 1
+           | length p <= 6 = 2
+           | otherwise = length p `div` 2
