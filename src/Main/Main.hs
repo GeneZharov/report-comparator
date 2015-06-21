@@ -12,6 +12,7 @@ import Debug.Trace
 
 import Paths_report_comparator
 import Main.Utils
+import Data.Types
 import Data.Extraction (pythonStdout, extract, fromNotes, fromPhotos)
 import Data.Analysis (matchedCount, duplicates, notParsed, notMatched)
 import Address.Types
@@ -68,13 +69,16 @@ compareReports b = do
     notesColumn   <- builderGetObject b castToSpinButton "notesColumn"
     notesSheets   <- builderGetObject b castToComboBox "notesSheets"
 
-    --let photosDir = Just "../samples/epil"
-    --let notesFile = Just "../samples/epil.csv"
-    photosDir <- fileChooserGetFilename photos
-    notesFile <- fileChooserGetFilename notes
-    dirMode   <- liftM (== 0) (comboBoxGetActive photosDirMode)
-    colNum    <- spinButtonGetValueAsInt notesColumn
-    sheetName <- liftM fromJust (comboBoxGetActiveText notesSheets)
+    --photosDir <- fileChooserGetFilename photos
+    --notesFile <- fileChooserGetFilename notes
+    --dirMode   <- liftM (== 0) (comboBoxGetActive photosDirMode)
+    --colNum    <- spinButtonGetValueAsInt notesColumn
+    --sheetName <- liftM fromJust (comboBoxGetActiveText notesSheets)
+    let photosDir = Just "/_reports/friso-test"
+    let notesFile = Just "/_reports/2014.09.15.xls"
+    let sheetName = "ФРИСОЛАК"
+    let dirMode   = False
+    let colNum    = 3
 
     if any isNothing [photosDir, notesFile]
     then do
@@ -93,13 +97,14 @@ compareReports b = do
 
 -- Отрисовывает результат сопоставления отчётов
 draw :: Builder
-     -> Either IOError [ (String, Either ParseError [Component]) ]
-     -> Either IOError [ (String, Either ParseError [Component]) ]
+     -> Either IOError [ (Address, Either ParseError [Component]) ]
+     -> Either IOError [ (Address, Either ParseError [Component]) ]
      -> IO ()
 
 draw b (Left photosErr) _ = do
     mainWindow <- builderGetObject b castToWindow "mainWindow"
     alert mainWindow (show photosErr)
+
 draw b _ (Left notesErr) = do
     mainWindow <- builderGetObject b castToWindow "mainWindow"
     alert mainWindow $
@@ -193,7 +198,7 @@ drawMatched b labelID count = do
 -- Отрисовывает дубликаты адресов.
 -- Принимает набор данных и id виджета, в который вставлять результат.
 drawDuplicates :: Builder -> String
-    -> [ (Int, (String, Either ParseError [Component])) ]
+    -> [ (Int, (Address, Either ParseError [Component])) ]
     -> IO ()
 drawDuplicates b containerID model = do
 
@@ -230,7 +235,7 @@ drawDuplicates b containerID model = do
 -- Отрисовывает не распарсенные адреса.
 -- Принимает набор данных и id виджета, в который вставлять результат.
 drawNotParsed :: Builder -> String
-              -> [ (String, Either ParseError [Component]) ]
+              -> [ (Address, Either ParseError [Component]) ]
               -> IO ()
 drawNotParsed b containerID model = do
 
@@ -260,9 +265,9 @@ drawNotParsed b containerID model = do
 -- виджета, в который вставлять результат.
 drawNotMatched :: Builder -> String
                -> [(
-                      String,
+                      Address,
                       [Component],
-                      Either String [(String, Int, Bool)]
+                      Either String [(Address, Int, Bool)]
                   )]
                -> IO ()
 drawNotMatched b containerID model = do

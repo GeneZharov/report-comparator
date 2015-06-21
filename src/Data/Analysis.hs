@@ -13,6 +13,7 @@ import Data.Either (rights)
 import Data.Char (toLower)
 import Debug.Trace (trace)
 
+import Data.Types
 import Address.Types (Component, isRoad, getRoad)
 
 
@@ -32,7 +33,7 @@ import Address.Types (Component, isRoad, getRoad)
 -- После этого применяет алгоритм Дамерау-Левенштейна образцу и каждому из 
 -- словосочетаний. Возвращает минимальное из получившихся расстояний.
 linearSearch :: String -> String -> Int
-linearSearch pattern testing = minimum $ map (distance pattern') testing'
+linearSearch pattern testing = minimum $ (distance pattern') `map` testing'
   where
     distance = restrictedDamerauLevenshteinDistance defaultEditCosts
     pattern' = unwords (words pattern) -- нормализую пробелы
@@ -50,8 +51,8 @@ linearSearch pattern testing = minimum $ map (distance pattern') testing'
 
 -- Количество адресов с парой
 matchedCount ::
-    [ (String, Either ParseError [Component]) ] ->
-    [ (String, Either ParseError [Component]) ] ->
+    [ (Address, Either ParseError [Component]) ] ->
+    [ (Address, Either ParseError [Component]) ] ->
     Int
 matchedCount xs ys = Set.size $ Set.intersection (toSet xs) (toSet ys)
     where toSet = Set.fromList . rights . snd . unzip
@@ -61,8 +62,8 @@ matchedCount xs ys = Set.size $ Set.intersection (toSet xs) (toSet ys)
 -- Формирует список дубликатов (одинаковое множество компонент).
 -- Возвращает количество повторений каждого из дубликатов.
 duplicates ::
-    [ (String, Either ParseError [Component]) ] ->
-    [ (Int, (String, Either ParseError [Component])) ]
+    [ (Address, Either ParseError [Component]) ] ->
+    [ (Int, (Address, Either ParseError [Component])) ]
 duplicates = map (\xs -> (length xs, head xs))
            . filter ((>1) . length)
            . groupBy test
@@ -72,8 +73,8 @@ duplicates = map (\xs -> (length xs, head xs))
 
 
 -- Формирует список не распарсенных адресов в группе
-notParsed :: [ (String, Either ParseError [Component]) ]
-          -> [ (String, Either ParseError [Component]) ]
+notParsed :: [ (Address, Either ParseError [Component]) ]
+          -> [ (Address, Either ParseError [Component]) ]
 notParsed = filter (isLeft . snd)
     where isLeft (Left _) = True
           isLeft _ = False
@@ -84,16 +85,18 @@ notParsed = filter (isLeft . snd)
 -- группе, нахожу степень похожести на каждый из адресов второй группы.
 
 notMatched ::
-    [ (String, Either ParseError [Component]) ] ->
-    [ (String, Either ParseError [Component]) ] ->
+    [ (Address, Either ParseError [Component]) ] ->
+    [ (Address, Either ParseError [Component]) ] ->
     [(
-        String,      -- Адрес первой группы
+        Address,     -- Адрес первой группы
         [Component], -- Распарсенный адрес первой группы
-        Either String [(
-            String -- Один из адресов второй группы
-         ,  Int    -- Степень соответствия адресу первой группы
-         ,  Bool   -- Есть ли уже у этого адреса пара из первой группы
-        )]
+        Either
+           String -- Ошибка, почему не удалось найти альтернативы
+           [(
+               Address -- Один из адресов второй группы
+            ,  Int     -- Степень соответствия адресу первой группы
+            ,  Bool    -- Есть ли уже у этого адреса пара из первой группы
+           )]
     )]
 
 notMatched xs ys =

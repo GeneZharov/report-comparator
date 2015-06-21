@@ -13,8 +13,10 @@ import System.IO.Error (userError)
 import System.Environment (getEnvironment)
 import System.Process
 import Text.Regex.TDFA
+import Control.Monad.IO.Class
 
 import Paths_report_comparator
+import Data.Types
 import Address.Main
 import Address.Types
 
@@ -37,20 +39,26 @@ pythonStdout conf = do
 -- Извлекает адреса из имён файлов внутри каталога с фотографиями. Может 
 -- работать в двух режимах: извлечение из имён каталогов и из имён обычных 
 -- файлов.
-fromPhotos :: Bool -> String -> IO [String]
+fromPhotos :: Bool -> FilePath -> IO [Address]
 fromPhotos dirMode dir = do
 
-    names <- liftM (filter (`notElem` [ ".", ".." ])) (getDirectoryContents dir)
-    let fullNames = map ((dir ++ "/") ++) names
-    hasSubDirs <- liftM (not . null) (filterM doesDirectoryExist fullNames)
+    dirContents <- getDirectoryContents dir
+    let names = [ file
+                   | name <- dirContents
+                   , name /= "."
+                   , name /= ".."
+                   , let file = dir ++ "/" ++ name
+                   ]
+
+    hasSubDirs <- (not . null) `liftM` (doesDirectoryExist `filterM` names)
 
     if hasSubDirs
-    then liftM concat $ mapM (fromPhotos dirMode) fullNames
+    then concat `liftM` (fromPhotos dirMode `mapM` names)
     else if dirMode
          then return [takeFileName dir]
              -- Если в каталоге нет ни одного подкаталога,
              -- значит имя каталога содержит искомый адрес.
-         else return $ map (cropCopy . takeBaseName) names
+         else return $ (cropCopy . takeBaseName) `map` names
              -- Если в каталоге нет ни одного подкаталога, значит адреса 
              -- содержатся в непосредственном содержимом каталога.
 
@@ -63,35 +71,21 @@ fromPhotos dirMode dir = do
 
 
 -- Извлекает адреса из таблицы отчёта в заданном файле
-{- Извлечение из CSV
-fromNotes :: String -> IO [String]
-fromNotes file = liftM parseCSV (readFile' utf8 file)
-             >>= either (throwIO . userError . show) (return . pick)
-    where pick lines = lines >>=
-              \l -> if head l =~ "\\d+" -- Если в первой ячейке номер строки,
-                    then [l!!2]         -- то адрес лежит в 3-й ячейке.
-                    else []             -- Иначе строка не содержит адрес.
-          readFile' :: TextEncoding -> String -> IO String
-          readFile' enc name = do
-              h <- openFile name ReadMode
-              hSetEncoding h enc
-              hGetContents h
--}
-fromNotes :: String -> Int -> String -> IO [String]
+fromNotes :: String -> Int -> FilePath -> IO [Address]
 fromNotes sheet col file = do
     py <- getDataFileName "tables/addresses"
-    liftM lines $ pythonStdout (proc "python" [py, file, sheet, show col])
+    lines `liftM` pythonStdout (proc "python" [py, file, sheet, show col])
 
 
 
 -- Извлекает адреса с помощью пользовательской функции из заданного файла и 
--- возвращает список пар, где в каждой паре строка адреса и результат её 
--- разбора.
-extract :: (String -> IO [String])
-        -> String
-        -> IO [ (String, Either ParseError [Component]) ]
+-- возвращает список пар со строкой адреса и результатом его разбора.
+extract :: (FilePath -> IO [Address])
+        -> FilePath
+        -> IO [ (Address, Either ParseError [Component]) ]
 extract extracter f = do
-    strings  <- extracter f -- Извлекаю адреса
-    let parsed = map parseAddr strings -- Анализирую адреса
-    return $ zip strings parsed
-        -- Возвращаю комбинацию строки адреса и результата её разбора
+    strings <- extracter f
+    return [ (string, parsed)
+           | string <- strings
+           , let parsed = parseAddr string
+           ]

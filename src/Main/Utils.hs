@@ -32,7 +32,7 @@ toReadable str = replace ( str =~ "\\\\([0-9]{4})" )
 
 
 -- Приводит набор компонент адреса к читаемой строке
-format :: [ Component ] -> String
+format :: [Component] -> String
 format = init . tail     -- Обрезаю фигурные скобки
        . map newlines . toReadable . show
     where newlines c | c == ',' = '\n'

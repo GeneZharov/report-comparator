@@ -23,18 +23,19 @@ executable comparator
   hs-source-dirs: src
   main-is: Main/Main.hs
   build-depends:
-    base,
-    gtk >= 0.12 && < 0.13,
-    bytestring,
-    utf8-light,
-    edit-distance,
-    regex-tdfa,
-    parsec,
-    containers,
-    process,
-    directory,
-    filepath,
-    russian-address-parser
-    -- Ставлю последнюю из доступных не замаскированных версий, которая 
+    -- Ставлю последнюю из доступных не замаскированных версий gtk, которая 
     -- поддерживает gtk2. Версия 3.18.3 уже не поддерживает gtk2, а 
     -- поддерживает gtk3.
+      base
+    , gtk >= 0.12 && < 0.13
+    , bytestring
+    , utf8-light
+    , edit-distance
+    , regex-tdfa
+    , parsec
+    , containers
+    , process
+    , directory
+    , filepath
+    , russian-address-parser
+    , transformers
