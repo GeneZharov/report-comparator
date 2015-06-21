@@ -21,37 +21,40 @@ import Address.Types
 -- Обработчик выбора файла с табличным отчётом, обновляет меню страниц таблицы
 updateSheets :: Builder -> IO ()
 updateSheets b = do
+
     py <- getDataFileName "tables/sheet-names"
     file <- builderGetObject b castToFileChooserButton "notes"
         >>= liftM getFileName . fileChooserGetFilename
     try (pythonStdout (proc "python" [py, file])) >>= update file
-    where update :: String -> Either IOError String -> IO ()
 
-          update file (Left parseErr) = do
+    where
+       update :: String -> Either IOError String -> IO ()
 
-              -- Очищаю меню табличного отчёта
-              mainWindow <- builderGetObject b castToWindow "mainWindow"
-              notes <- builderGetObject b castToFileChooserButton "notes"
-              fileChooserUnselectAll notes
+       update file (Left parseErr) = do
 
-              -- Очищаю меню страниц табличного отчёта
-              notesSheets <- builderGetObject b castToComboBox "notesSheets"
-              comboBoxSetModelText notesSheets
+           -- Очищаю меню табличного отчёта
+           mainWindow <- builderGetObject b castToWindow "mainWindow"
+           notes <- builderGetObject b castToFileChooserButton "notes"
+           fileChooserUnselectAll notes
 
-              alert mainWindow $
-                "Не удалось открыть электронную таблицу:\n" ++ file
-                ++ "\n\n" ++ show parseErr
+           -- Очищаю меню страниц табличного отчёта
+           notesSheets <- builderGetObject b castToComboBox "notesSheets"
+           comboBoxSetModelText notesSheets
 
-          update _ (Right sheetNames) = do
+           alert mainWindow $
+             "Не удалось открыть электронную таблицу:\n" ++ file
+             ++ "\n\n" ++ show parseErr
 
-              -- Наполняю combobox с названиями страниц новым содержимым
-              notesSheets <- builderGetObject b castToComboBox "notesSheets"
-              comboBoxSetModelText notesSheets
-              forM_ (lines sheetNames)
-                  $ \sheet -> comboBoxAppendText notesSheets sheet
+       update _ (Right sheetNames) = do
 
-              -- Первый пункт меню — активный
-              set notesSheets [comboBoxActive := 0]
+           -- Наполняю combobox с названиями страниц новым содержимым
+           notesSheets <- builderGetObject b castToComboBox "notesSheets"
+           comboBoxSetModelText notesSheets
+           forM_ (lines sheetNames)
+               $ \sheet -> comboBoxAppendText notesSheets sheet
+
+           -- Первый пункт меню — активный
+           set notesSheets [comboBoxActive := 0]
 
 
 
@@ -77,13 +80,14 @@ compareReports b = do
     then do
         mainWindow <- builderGetObject b castToWindow "mainWindow"
         alert mainWindow "Заданы не все данные"
-    else do photos <- try $ extract (fromPhotos dirMode)
-                                    (getFileName photosDir)
-            notes  <- try $ extract (fromNotes sheetName (colNum - 1))
-                                    (getFileName notesFile)
-            draw b photos notes
-                -- `catch` \ (e :: SomeException)
-                --        -> alert mainWindow (show e)
+    else do
+        photos <- try $ extract (fromPhotos dirMode)
+                                (getFileName photosDir)
+        notes  <- try $ extract (fromNotes sheetName (colNum - 1))
+                                (getFileName notesFile)
+        draw b photos notes
+            -- `catch` \ (e :: SomeException)
+            --        -> alert mainWindow (show e)
 
 
 
@@ -269,7 +273,7 @@ drawNotMatched b containerID model = do
     tableSetColSpacings table 40
 
     genLabel (meta "Без пары из текущей группы адресов") >>= addCell table 0 0
-    genLabel (meta "Похожие из другой группы адресов" )  >>= addCell table 1 0
+    genLabel (meta "Похожие из другой группы адресов"  ) >>= addCell table 1 0
 
     -- Генерю строки с адресами, которым не нашлось пары
     if null model
@@ -316,8 +320,8 @@ drawNotMatched b containerID model = do
     containerAdd alignment table
     widgetShowAll table
 
-    where isLeft (Left _)  = True
-          isLeft (Right _) = False
+    where isLeft (Left _)     = True
+          isLeft (Right _)    = False
           fromLeft (Left x)   = x
           fromRight (Right x) = x
 

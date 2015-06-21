@@ -152,8 +152,9 @@ notMatched xs ys =
         -- Допустимое количество ошибок, при которых адреса считаются похожими.
         -- Зависит от длины шаблона.
         maxDistance :: String -> Int
-        maxDistance p -- pattern
-           | length p <= 2 = 0
-           | length p <= 4 = 1
-           | length p <= 6 = 2
-           | otherwise = length p `div` 2
+        maxDistance pattern
+           | l <= 2 = 0
+           | l <= 4 = 1
+           | l <= 6 = 2
+           | otherwise = l `div` 2
+           where l = length pattern
