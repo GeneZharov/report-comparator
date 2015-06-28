@@ -1,21 +1,24 @@
-name:                report-comparator
-version:             0.1.0
-synopsis:            ...
-homepage:            https://github.com/kahless/report-comparator
-license:             MIT
-license-file:        LICENSE
-author:              Yevgeny Zharov
-maintainer:          krantadan@mail.ru
-category:            Network
+name:         report-comparator
+version:      0.1.0
+synopsis:     ...
+homepage:     https://github.com/kahless/report-comparator
+license:      MIT
+license-file: LICENSE
+author:       Yevgeny Zharov
+maintainer:   krantadan@mail.ru
+category:     Network
 
-build-type:          Simple
-extra-source-files:  README.nt
-cabal-version:       >=1.10
 
-data-dir:            data
-data-files:          main.glade,
-                     tables/addresses,
-                     tables/sheet-names
+build-type: Simple
+extra-source-files: README.nt
+cabal-version: >=1.10
+
+
+data-dir: data
+data-files:
+    main.glade
+  , tables/addresses
+  , tables/sheet-names
 
 
 executable comparator
@@ -39,3 +42,4 @@ executable comparator
     , filepath
     , russian-address-parser
     , transformers
+    , split

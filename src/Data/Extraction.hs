@@ -2,18 +2,19 @@
 module Data.Extraction where
 
 
+import Debug.Trace (trace)
 import Control.Monad
 import System.FilePath (takeFileName, takeBaseName)
 import System.Directory (getDirectoryContents, doesDirectoryExist)
 import Text.Parsec.Error (ParseError)
 import System.IO
-import Debug.Trace (trace)
 import Control.Exception (throwIO)
 import System.IO.Error (userError)
 import System.Environment (getEnvironment)
 import System.Process
 import Text.Regex.TDFA
-import Control.Monad.IO.Class
+import Data.List (intercalate)
+import Data.List.Split (splitOn)
 
 import Paths_report_comparator
 import Data.Types
@@ -43,24 +44,30 @@ fromPhotos :: Bool -> FilePath -> IO [Address]
 fromPhotos dirMode dir = do
 
     dirContents <- getDirectoryContents dir
-    let names = [ file
-                   | name <- dirContents
-                   , name /= "."
-                   , name /= ".."
-                   , let file = dir ++ "/" ++ name
-                   ]
+    let files = [ file
+                | name <- dirContents
+                , name /= "."
+                , name /= ".."
+                , let file = dir ++ "/" ++ name
+                ]
 
-    hasSubDirs <- (not . null) `liftM` (doesDirectoryExist `filterM` names)
+    hasSubDirs <- (not . null) `liftM` (doesDirectoryExist `filterM` files)
 
     if hasSubDirs
-    then concat `liftM` (fromPhotos dirMode `mapM` names)
+    then concat `liftM` (fromPhotos dirMode `mapM` files)
     else if dirMode
-         then return [takeFileName dir]
-             -- Если в каталоге нет ни одного подкаталога,
-             -- значит имя каталога содержит искомый адрес.
-         else return $ (cropCopy . takeBaseName) `map` names
-             -- Если в каталоге нет ни одного подкаталога, значит адреса 
-             -- содержатся в непосредственном содержимом каталога.
+         then
+            -- Если в каталоге нет ни одного подкаталога,
+            -- значит имя каталога содержит искомый адрес.
+            let name = takeFileName dir
+            in return [ Address name name dir ]
+         else
+            -- Если в каталоге нет ни одного подкаталога, значит адреса 
+            -- содержатся в непосредственном содержимом каталога.
+            return [ Address name name file
+                   | file <- files
+                   , let name = cropCopy (takeBaseName file)
+                   ]
 
     where cropCopy name = name'
               where (name', _, _) = name =~ " \\([[:digit:]]+\\)\
@@ -73,19 +80,12 @@ fromPhotos dirMode dir = do
 -- Извлекает адреса из таблицы отчёта в заданном файле
 fromNotes :: String -> Int -> FilePath -> IO [Address]
 fromNotes sheet col file = do
-    py <- getDataFileName "tables/addresses"
-    lines `liftM` pythonStdout (proc "python" [py, file, sheet, show col])
-
-
-
--- Извлекает адреса с помощью пользовательской функции из заданного файла и 
--- возвращает список пар со строкой адреса и результатом его разбора.
-extract :: (FilePath -> IO [Address])
-        -> FilePath
-        -> IO [ (Address, Either ParseError [Component]) ]
-extract extracter f = do
-    strings <- extracter f
-    return [ (string, parsed)
-           | string <- strings
-           , let parsed = parseAddr string
+    pyFile <- getDataFileName "tables/addresses"
+    pyOut  <- pythonStdout $ proc "python" [pyFile, file, sheet, show col]
+    return [ Address name name ctx
+           | line <- splitOn "\0" pyOut
+           , let names = lines line :: [String]
+           , col < length names
+           , let name  = (trace (show names) names) !! col
+                 ctx   = intercalate " | " names
            ]

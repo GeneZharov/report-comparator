@@ -10,12 +10,25 @@ import Data.Ord (comparing)
 import System.Process (proc)
 import Debug.Trace
 
+-- Для IORef
+import Data.IORef
+import System.IO.Unsafe
+
 import Paths_report_comparator
 import Main.Utils
 import Data.Types
-import Data.Extraction (pythonStdout, extract, fromNotes, fromPhotos)
+import Data.Extraction (pythonStdout, fromNotes, fromPhotos)
 import Data.Analysis (matchedCount, duplicates, notParsed, notMatched)
 import Address.Types
+import Address.Main (parseAddr)
+
+
+
+-- Глобальное изменяемое состояние, содержит данные ныне сравниваемых адресов. 
+-- Пользователь может изменить ареса в этих данных и снова запустить 
+-- сопоставление.
+comparingData :: IORef ([Address], [Address])
+comparingData = unsafePerformIO $ newIORef undefined
 
 
 
@@ -75,54 +88,53 @@ compareReports b = do
     --colNum    <- spinButtonGetValueAsInt notesColumn
     --sheetName <- liftM fromJust (comboBoxGetActiveText notesSheets)
     let photosDir = Just "/_reports/friso-test"
-    let notesFile = Just "/_reports/2014.09.15.xls"
-    let sheetName = "ФРИСОЛАК"
-    let dirMode   = False
-    let colNum    = 3
+        notesFile = Just "/_reports/2014.09.15.xls"
+        sheetName = "ФРИСОЛАК"
+        dirMode   = False
+        colNum    = 3
 
     if any isNothing [photosDir, notesFile]
     then do
-        mainWindow <- builderGetObject b castToWindow "mainWindow"
-        alert mainWindow "Заданы не все данные"
+       mainWindow <- builderGetObject b castToWindow "mainWindow"
+       alert mainWindow "Заданы не все данные"
     else do
-        photos <- try $ extract (fromPhotos dirMode)
-                                (getFileName photosDir)
-        notes  <- try $ extract (fromNotes sheetName (colNum - 1))
-                                (getFileName notesFile)
-        draw b photos notes
-            -- `catch` \ (e :: SomeException)
-            --        -> alert mainWindow (show e)
+       photos <- try $ fromPhotos dirMode (getFileName photosDir)
+       notes  <- try $ fromNotes sheetName (colNum - 1) (getFileName notesFile)
+       case (photos, notes) of
+          (Left err, _) -> report b err
+          (_, Left err) -> report b err
+          (Right photos', Right notes') -> do
+             writeIORef comparingData (photos', notes')
+             draw b (parse photos') (parse notes')
+                 -- `catch` \ (e :: SomeException)
+                 --        -> alert mainWindow (show e)
+
+    where
+
+       parse :: [Address] -> [Parsed]
+       parse ds = [ Parsed d p
+                  | d@(Address _ f _) <- ds
+                  , let p = parseAddr f
+                  ]
+
+       report :: Builder -> IOError -> IO ()
+       report b err = do
+          mainWindow <- builderGetObject b castToWindow "mainWindow"
+          alert mainWindow (show err)
 
 
 
 -- Отрисовывает результат сопоставления отчётов
-draw :: Builder
-     -> Either IOError [ (Address, Either ParseError [Component]) ]
-     -> Either IOError [ (Address, Either ParseError [Component]) ]
-     -> IO ()
-
-draw b (Left photosErr) _ = do
-    mainWindow <- builderGetObject b castToWindow "mainWindow"
-    alert mainWindow (show photosErr)
-
-draw b _ (Left notesErr) = do
-    mainWindow <- builderGetObject b castToWindow "mainWindow"
-    alert mainWindow $
-        if encErr `isInfixOf` show notesErr
-        then "Неверная кодировка файла: " ++ fromJust (ioeGetFileName notesErr)
-          ++ "\nОжидается кодировка UTF-8"
-        else "Ошибка разбора файла:\n" ++ show notesErr
-        where encErr = "hGetContents: invalid argument (invalid byte sequence)"
-
-draw b (Right photos) (Right notes) = do
+draw :: Builder -> [Parsed] -> [Parsed] -> IO ()
+draw b photos notes = do
 
     let bothMatched      = matchedCount photos notes
-    let photosDuplicates = duplicates   photos
-    let photosNotParsed  = notParsed    photos
-    let photosNotMatched = notMatched   photos notes
-    let notesDuplicates  = duplicates   notes
-    let notesNotParsed   = notParsed    notes
-    let notesNotMatched  = notMatched   notes  photos
+        photosDuplicates = duplicates   photos
+        photosNotParsed  = notParsed    photos
+        photosNotMatched = notMatched   photos notes
+        notesDuplicates  = duplicates   notes
+        notesNotParsed   = notParsed    notes
+        notesNotMatched  = notMatched   notes  photos
 
     -- Количество адресов каждого типа
     drawStat b "photosStat"
@@ -197,9 +209,7 @@ drawMatched b labelID count = do
 
 -- Отрисовывает дубликаты адресов.
 -- Принимает набор данных и id виджета, в который вставлять результат.
-drawDuplicates :: Builder -> String
-    -> [ (Int, (Address, Either ParseError [Component])) ]
-    -> IO ()
+drawDuplicates :: Builder -> String -> [(Int, Parsed)] -> IO ()
 drawDuplicates b containerID model = do
 
     -- Создаю таблицу
@@ -211,18 +221,24 @@ drawDuplicates b containerID model = do
     -- Наполняю таблицу строками
     if null model
     then genLabel (italicMeta "Пусто") >>= addCell table 0 0
-    else forM_ (zip [0..] model) $ \ (i, (count, (src, Right comps))) -> do
+    else forM_ (zip [0..] model) $
+       \ ( dupNum
+         ,  ( dupsCount
+            ,  ( Parsed (Address real _ _) (Right comps) )
+            )
+         ) -> do
 
-        -- Ячейка с текстом адреса
-        srcLabel <- genLabel src
-        set srcLabel [
-            widgetTooltipText := Just (format comps)
-          , labelSelectable := True
-          ]
-        addCell table 0 i srcLabel
+            -- Ячейка с текстом адреса
+            srcLabel <- genLabel real
+            set srcLabel [
+                widgetTooltipText := Just (format comps)
+              , labelSelectable := True
+              ]
+            addCell table 0 dupNum srcLabel
 
-        -- Ячейка с количеством дубликатов
-        genLabel ("— " ++ show count ++ " шт.") >>= addCell table 1 i
+            -- Ячейка с количеством дубликатов
+            genLabel ("— " ++ show dupsCount ++ " шт.")
+               >>= addCell table 1 dupNum
 
     -- Подставляю таблицу в контейнер и показываю результат
     alignment <- builderGetObject b castToAlignment containerID
@@ -234,9 +250,7 @@ drawDuplicates b containerID model = do
 
 -- Отрисовывает не распарсенные адреса.
 -- Принимает набор данных и id виджета, в который вставлять результат.
-drawNotParsed :: Builder -> String
-              -> [ (Address, Either ParseError [Component]) ]
-              -> IO ()
+drawNotParsed :: Builder -> String -> [Parsed] -> IO ()
 drawNotParsed b containerID model = do
 
     -- Создаю таблицу
@@ -247,8 +261,8 @@ drawNotParsed b containerID model = do
     -- Наполняю таблицу строками
     if null model
     then genLabel (italicMeta "Пусто") >>= addCell table 0 0
-    else forM_ (zip [0..] model) $ \ (i, addr) -> do
-            label <- genLabel (fst addr)
+    else forM_ (zip [0..] model) $ \ (i, Parsed (Address real _ _) _) -> do
+            label <- genLabel real
             labelSetSelectable label True
             addCell table 0 i label
             --genLabel "Error not implemented" >>= addCell table 1 i
@@ -265,70 +279,74 @@ drawNotParsed b containerID model = do
 -- виджета, в который вставлять результат.
 drawNotMatched :: Builder -> String
                -> [(
-                      Address,
-                      [Component],
-                      Either String [(Address, Int, Bool)]
+                      Parsed,
+                      Either ErrMsg [(String, Int, Bool)]
                   )]
                -> IO ()
 drawNotMatched b containerID model = do
 
-    -- Создаю таблицу для адресов без пар
-    table <- tableNew (length model) 2 False -- строк, столбцов, homogeneous
-    tableSetRowSpacings table 7
-    tableSetColSpacings table 40
+   -- Создаю таблицу для адресов без пар
+   table <- tableNew (length model) 2 False -- строк, столбцов, homogeneous
+   tableSetRowSpacings table 7
+   tableSetColSpacings table 40
 
-    genLabel (meta "Без пары из текущей группы адресов") >>= addCell table 0 0
-    genLabel (meta "Похожие из другой группы адресов"  ) >>= addCell table 1 0
+   genLabel (meta "Без пары из текущей группы адресов") >>= addCell table 0 0
+   genLabel (meta "Похожие из другой группы адресов"  ) >>= addCell table 1 0
 
-    -- Генерю строки с адресами, которым не нашлось пары
-    if null model
-    then genLabel (italicMeta "Пусто") >>= addCell table 0 0
-    else forM_ (zip model [1..]) $ \ ((addr, comps, options), i) -> do
+   -- Генерю строки с адресами, которым не нашлось пары
+   if null model
+   then genLabel (italicMeta "Пусто") >>= addCell table 0 0
+   else forM_ (zip [1..] model) $
+      \ ( i
+        ,  ( Parsed (Address real _ _) (Right comps)
+           , options
+           )
+        ) -> do
 
-        -- Линия-разделитель
-        separator <- hSeparatorNew
-        tableAttach table separator 0 2 (2*i) (2*i+1) [Fill] [] 0 0
+           -- Линия-разделитель
+           separator <- hSeparatorNew
+           tableAttach table separator 0 2 (2*i) (2*i+1) [Fill] [] 0 0
 
-        -- Строка адреса без пары
-        leftLabel <- genLabel addr
-        set leftLabel [
-            widgetTooltipText := Just (format comps)
-          , labelSelectable := True
-          ]
-        --labelSetSelectable leftLabel True
-        addCell table 0 (i*2+1) leftLabel
+           -- Строка адреса без пары
+           leftLabel <- genLabel real
+           set leftLabel [
+               widgetTooltipText := Just (format comps)
+             , labelSelectable := True
+             ]
+           --labelSetSelectable leftLabel True
+           addCell table 0 (i*2+1) leftLabel
 
-        -- Похожие адреса
-        if isLeft options
-        then do
-            errorLabel <- genLabel (italicMeta $ fromLeft options)
-            labelSetSelectable errorLabel True
-            addCell table 1 (i*2+1) errorLabel
-        else do
-            vbox <- vBoxNew True 7 -- homogeneous, spacing
-            forM_ (fromRight options) $ \ (addr, fit, matched) -> do
-                -- Генерю одну из альтернатив
-                hbox <- hBoxNew False 7
-                boxSetHomogeneous hbox False
-                alt <- genLabel addr
-                labelSetSelectable alt True
-                boxPackStart hbox alt PackNatural 0
-                when matched $ do
-                    pairedLabel <- genLabel (italicMeta "— уже имеет пару")
-                    boxPackStart hbox pairedLabel PackNatural 0
-                boxPackEndDefaults vbox hbox -- Добавляю hbox в конец vbox
-            addCell table 1 (i*2+1) vbox
+           -- Похожие адреса
+           case options of
+              Left err -> do
+                 errorLabel <- genLabel (italicMeta err)
+                 labelSetSelectable errorLabel True
+                 addCell table 1 (i*2+1) errorLabel
+              Right options' -> do
+                 vbox <- vBoxNew True 7 -- homogeneous, spacing
+                 forM_ options' $ \ (addr, fit, matched) -> do
+                    -- Создаю одну из альтернатив
+                    hbox <- hBoxNew False 7
+                    boxSetHomogeneous hbox False
+                    alt <- genLabel addr
+                    labelSetSelectable alt True
+                    boxPackStart hbox alt PackNatural 0
+                    when matched $ do
+                        pairedLabel <- genLabel (italicMeta "— уже имеет пару")
+                        boxPackStart hbox pairedLabel PackNatural 0
+                    boxPackEndDefaults vbox hbox -- Добавляю hbox в конец vbox
+                 addCell table 1 (i*2+1) vbox
 
-    -- Подставляю таблицу в контейнер и показываю результат
-    alignment <- builderGetObject b castToAlignment containerID
-    destroyChildren alignment
-    containerAdd alignment table
-    widgetShowAll table
+   -- Подставляю таблицу в контейнер и показываю результат
+   alignment <- builderGetObject b castToAlignment containerID
+   destroyChildren alignment
+   containerAdd alignment table
+   widgetShowAll table
 
-    where isLeft (Left _)     = True
-          isLeft (Right _)    = False
-          fromLeft (Left x)   = x
-          fromRight (Right x) = x
+   where isLeft (Left _)     = True
+         isLeft (Right _)    = False
+         fromLeft (Left x)   = x
+         fromRight (Right x) = x
 
 
 

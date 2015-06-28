@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 
-# Извлекает адреса из файла с таблицами
+# Извлекает содержимое из таблицы excel
 #
 # $1 — имя файла с таблицами
 # $2 — имя страницы, из которой надо извлечь адреса
-# $3 — номер колонки, в которой лежат адреса
+#
+# Выводит содержимое на stdout
+# Ячейки разделяются переносом строки
+# Строки разделяются нулевым байтом
 
 
 import sys
@@ -12,10 +15,10 @@ import re
 from xlrd import open_workbook
 
 
-#filename = '/root/s/zdrav/reports/2014.09.15.xlsx'
-filename = sys.argv[1]
-sheet = sys.argv[2]
-colnum = int(sys.argv[3])
+#filename = sys.argv[1]
+#sheet = sys.argv[2]
+filename = '/_reports/2014.09.15.xls'
+sheet = 'ФРИСОЛАК'
 
 
 result = []
@@ -26,8 +29,6 @@ for i in range(sheet.nrows):
     row = sheet.row(i)
     if row[0].ctype == 2: # 2 — XL_CELL_NUMBER, то есть в ячейке число
         # Если в первой ячейке номер строки, то это строка с адресом
-        addr = row[colnum].value
-        result.append(addr)
-
-for addr in result:
-    print(addr)
+        for cell in row:
+            print(cell.value)
+        print('\0')
