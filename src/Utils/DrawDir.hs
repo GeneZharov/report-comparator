@@ -3,27 +3,21 @@ module Utils.DrawDir where
 
 import System.File.Tree (getDirectory, toTree)
 import Control.Monad
-
 import Data.Tree
 
 
--- Представляет содержимое каталога в виде дерева
-drawDir :: FilePath -> IO [String]
-drawDir dir = (formatTree . toTree) `liftM` getDirectory dir
+modelDir :: FilePath -> IO [(Int, String)]
+modelDir dir = (modelDir' 0 . toTree) `liftM` getDirectory dir
+   where
+      modelDir' :: Int -> Tree String -> [(Int, String)]
+      modelDir' lvl (Node label forest) =
+         (lvl, label) : modelDir' (lvl + 1) `concatMap` forest
 
 
--- Формирует минималистичное строчное представление дерева
-formatTree :: Tree String -> [String]
-formatTree = draw . model 0
-  where
 
-    model :: Int -> Tree a -> [(Int, a)]
-    model lvl (Node label forest) =
-       (lvl, label) : concat (model (lvl + 1) `map` forest)
-
-    draw :: [(Int, String)] -> [String]
-    draw ls = [ indent ++ label
-              | let shift = replicate 8 ' '
-              , (lvl, label) <- ls
-              , let indent = concat (replicate lvl shift)
-              ]
+drawDir :: [(Int, String)] -> String
+drawDir lines = unlines [ indent ++ label
+                        | let shift = replicate 8 ' '
+                        , (lvl, label) <- lines
+                        , let indent = concat (replicate lvl shift)
+                        ]

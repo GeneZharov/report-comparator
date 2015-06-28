@@ -78,7 +78,11 @@ fromNotes sheet col file = do
 
 
 genPhotosPreview :: FilePath -> IO String
-genPhotosPreview dir = (unlines . take 20) `liftM` drawDir dir
+genPhotosPreview dir = do
+   model <- modelDir dir
+   let (lastLevel, _) = model !! (maxLines - 1)
+   return $ drawDir ( take maxLines model ++ [(lastLevel, "...")] )
+   where maxLines = 20
 
 
 
@@ -86,9 +90,10 @@ genNotesPreview :: String -> FilePath -> IO String
 genNotesPreview sheet file = do
    pyFile <- getDataFileName "tables/addresses"
    pyOut  <- pythonStdout $ proc "python" [pyFile, file, sheet]
-   return $ unlines . take 10
-          $ [ ctx
-            | line <- splitOn "\0\n" pyOut
-            , let names = lines line :: [String]
-                  ctx   = intercalate " | " names
-            ]
+   let preview = [ ctx
+                 | line <- splitOn "\0\n" pyOut
+                 , let names = lines line :: [String]
+                       ctx   = intercalate " | " names
+                 ]
+   return $ unlines (take maxLines preview ++ ["..."])
+   where maxLines = 10
