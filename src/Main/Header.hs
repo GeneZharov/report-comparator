@@ -13,7 +13,6 @@ import Graphics.UI.Gtk
 import Graphics.UI.Gtk.Builder
 
 import Utils.GTK
-import Utils.DrawDir
 import Utils.PythonStdout
 import Data.Types
 import Data.Extraction
@@ -78,9 +77,23 @@ updatePhotosPreview b = do
    photosPreview  <- builderGetObject b castToImage "photosPreview"
 
    Just photosDir <- fileChooserGetFilename photos
-   tooltip        <- (unlines . take 20) `liftM` drawDir photosDir
+   tooltip        <- genPhotosPreview photosDir
    set photosPreview [widgetTooltipText := Just tooltip]
 
+
+
+updateNotesPreview :: Builder -> IO ()
+updateNotesPreview b = do
+
+   notes        <- builderGetObject b castToFileChooserButton "notes"
+   notesSheets  <- builderGetObject b castToComboBox "notesSheets"
+   notesPreview <- builderGetObject b castToImage "notesPreview"
+
+   Just notesFile <- fileChooserGetFilename notes
+   Just sheetName <- comboBoxGetActiveText notesSheets
+
+   tooltip <- genNotesPreview sheetName notesFile
+   set notesPreview [widgetTooltipText := Just tooltip]
 
 
 -- Обрабтчик клика по "Сравнить"
@@ -97,7 +110,7 @@ compareReports b = do
    --notesFile <- fileChooserGetFilename notes
    --dirMode   <- liftM (== 0) (comboBoxGetActive photosDirMode)
    --colNum    <- spinButtonGetValueAsInt notesColumn
-   --sheetName <- liftM fromJust (comboBoxGetActiveText notesSheets)
+   --Just sheetName <- comboBoxGetActiveText notesSheets
    let photosDir = Just "/_reports/friso-test"
        notesFile = Just "/_reports/2014.09.15.xls"
        sheetName = "ФРИСОЛАК"

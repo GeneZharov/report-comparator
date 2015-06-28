@@ -19,6 +19,7 @@ import Data.Types
 import Address.Main
 import Address.Types
 import Utils.PythonStdout
+import Utils.DrawDir
 
 
 -- Извлекает адреса из имён файлов внутри каталога с фотографиями. Может 
@@ -65,7 +66,7 @@ fromPhotos dirMode dir = do
 fromNotes :: String -> Int -> FilePath -> IO [Address]
 fromNotes sheet col file = do
    pyFile <- getDataFileName "tables/addresses"
-   pyOut  <- pythonStdout $ proc "python" [pyFile, file, sheet, show col]
+   pyOut  <- pythonStdout $ proc "python" [pyFile, file, sheet]
    return [ Address name name ctx
           | line <- splitOn "\0" pyOut
           , let names = lines line :: [String]
@@ -73,3 +74,21 @@ fromNotes sheet col file = do
           , let name  = names !! col
                 ctx   = intercalate " | " names
           ]
+
+
+
+genPhotosPreview :: FilePath -> IO String
+genPhotosPreview dir = (unlines . take 20) `liftM` drawDir dir
+
+
+
+genNotesPreview :: String -> FilePath -> IO String
+genNotesPreview sheet file = do
+   pyFile <- getDataFileName "tables/addresses"
+   pyOut  <- pythonStdout $ proc "python" [pyFile, file, sheet]
+   return $ unlines . take 10
+          $ [ ctx
+            | line <- splitOn "\0\n" pyOut
+            , let names = lines line :: [String]
+                  ctx   = intercalate " | " names
+            ]
