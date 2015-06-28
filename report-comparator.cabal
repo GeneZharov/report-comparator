@@ -43,3 +43,4 @@ executable comparator
     , russian-address-parser
     , transformers
     , split
+    , filesystem-trees

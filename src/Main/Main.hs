@@ -14,8 +14,11 @@ import Debug.Trace
 import Data.IORef
 import System.IO.Unsafe
 
+
 import Paths_report_comparator
-import Main.Utils
+import Utils.GTK
+import Utils.Addr
+import Utils.DrawDir
 import Data.Types
 import Data.Extraction (pythonStdout, fromNotes, fromPhotos)
 import Data.Analysis (matchedCount, duplicates, notParsed, notMatched)
@@ -66,10 +69,22 @@ updateSheets b = do
          notesSheets <- builderGetObject b castToComboBox "notesSheets"
          comboBoxSetModelText notesSheets
          forM_ (lines sheetNames)
-             $ \sheet -> comboBoxAppendText notesSheets sheet
+             $ \ sheet -> comboBoxAppendText notesSheets sheet
 
          -- Первый пункт меню — активный
          set notesSheets [comboBoxActive := 0]
+
+
+
+updatePhotosPreview :: Builder -> IO ()
+updatePhotosPreview b = do
+
+   photos         <- builderGetObject b castToFileChooserButton "photos"
+   photosPreview  <- builderGetObject b castToImage "photosPreview"
+
+   Just photosDir <- fileChooserGetFilename photos
+   tooltip        <- (unlines . take 20) `liftM` drawDir photosDir
+   set photosPreview [widgetTooltipText := Just tooltip]
 
 
 
@@ -365,9 +380,15 @@ main = do
    photosDirMode <- builderGetObject b castToComboBox "photosDirMode"
    comboBoxSetActive photosDirMode 0
 
-   -- Выбор файла с табличным отчётом обновляет меню страниц
+   -- Выбор файла с табличным отчётом обновляет меню страниц таблицы
    notes <- builderGetObject b castToFileChooserButton "notes"
    afterCurrentFolderChanged notes (updateSheets b)
+
+   -- Обновление preview
+   photos      <- builderGetObject b castToFileChooserButton "photos"
+   notesSheets <- builderGetObject b castToComboBox "notesSheets"
+   afterCurrentFolderChanged photos (updatePhotosPreview b)
+   --after notesSheets changed (updateNotesPreview b)
 
    -- Клик по "Сравнить"
    submit <- builderGetObject b castToButton "submit"
