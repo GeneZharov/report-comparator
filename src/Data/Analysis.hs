@@ -43,18 +43,18 @@ sameAddr _ _ = False
 -- словосочетаний. Возвращает минимальное из получившихся расстояний.
 searchIn :: String -> String -> Int
 pattern `searchIn` testing = minimum $ distance pattern' `map` testing'
-  where
-    distance = restrictedDamerauLevenshteinDistance defaultEditCosts
-    pattern' = unwords (words pattern) -- нормализую пробелы
-    testing' = flip map [0..v] $ \i -> unwords $ slice i p (words testing)
-        -- Собираю возможные комбинации слов из проверяемой строки
-        -- с тем же количеством слов, что и в образце.
-        where p = length (words pattern)
-              t = length (words testing)
-              v = notNegative $ t - (p - 1) -- количество комбинаций слов
-                  where notNegative n | n < 0 = 0
-                                      | otherwise = n
-              slice a b = take b . drop a
+   where
+      distance = restrictedDamerauLevenshteinDistance defaultEditCosts
+      pattern' = unwords (words pattern) -- нормализую пробелы
+      testing' = flip map [0..v] $ \i -> unwords $ slice i p (words testing)
+         -- Собираю возможные комбинации слов из проверяемой строки
+         -- с тем же количеством слов, что и в образце.
+         where p = length (words pattern)
+               t = length (words testing)
+               v = notNegative $ t - (p - 1) -- количество комбинаций слов
+                   where notNegative n | n < 0 = 0
+                                       | otherwise = n
+               slice a b = take b . drop a
 
 
 
@@ -78,25 +78,25 @@ duplicates ps = [ (count, dup)
 -- Формирует список не распарсенных адресов в группе
 notParsed :: [Parsed] -> [Parsed]
 notParsed = filter (isLeft . parsedValue)
-    where isLeft (Left _) = True
-          isLeft _ = False
+   where isLeft (Left _) = True
+         isLeft _ = False
 
 
 
 -- Для распарсенных адресов первой группы, которым не нашлось пары во второй 
 -- группе, нахожу степень похожести на каждый из адресов второй группы.
 notMatched ::
-    [Parsed] -> [Parsed] ->
-    [(
-        Parsed,
-        Either
-           ErrMsg -- почему не удалось найти альтернативы
-           [(
-               String -- один из адресов второй группы
-            ,  Int    -- степень соответствия адресу первой группы
-            ,  Bool   -- есть ли уже у этого адреса пара из первой группы
-           )]
-    )]
+   [Parsed] -> [Parsed] ->
+   [(
+      Parsed,
+      Either
+         ErrMsg -- почему не удалось найти альтернативы
+         [(
+             String -- один из адресов второй группы
+          ,  Int    -- степень соответствия адресу первой группы
+          ,  Bool   -- есть ли уже у этого адреса пара из первой группы
+         )]
+   )]
 notMatched xs ys =
 
    [ (p, alts)
@@ -125,16 +125,16 @@ notMatched xs ys =
 
    where
 
-       icSearchIn :: String -> String -> Int
-       a `icSearchIn` b = map toLower a `searchIn` map toLower b
-           -- Регистронезависимый поиск подстроки
+      icSearchIn :: String -> String -> Int
+      a `icSearchIn` b = map toLower a `searchIn` map toLower b
+          -- Регистронезависимый поиск подстроки
 
-       -- Допустимое количество ошибок, при которых адреса считаются похожими.
-       -- Зависит от длины шаблона.
-       maxDistance :: String -> Int
-       maxDistance pattern
-          | l <= 2 = 0
-          | l <= 4 = 1
-          | l <= 6 = 2
-          | otherwise = l `div` 2
-          where l = length pattern
+      -- Допустимое количество ошибок, при которых адреса считаются похожими.
+      -- Зависит от длины шаблона.
+      maxDistance :: String -> Int
+      maxDistance pattern
+         | l <= 2 = 0
+         | l <= 4 = 1
+         | l <= 6 = 2
+         | otherwise = l `div` 2
+         where l = length pattern

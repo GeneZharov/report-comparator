@@ -14,21 +14,21 @@ import Address.Types
 -- Создаёт попап с сообщением об ошибке
 alert :: Window -> String -> IO ()
 alert parentWin msg = do
-    dialog <- messageDialogNew (Just parentWin) [] MessageError ButtonsOk msg
-    set dialog [windowTitle := "Ошибка" ]
-    onResponse dialog $ const (widgetHide dialog) -- сокрытие по "Ok"
-    widgetShow dialog
+   dialog <- messageDialogNew (Just parentWin) [] MessageError ButtonsOk msg
+   set dialog [windowTitle := "Ошибка" ]
+   onResponse dialog $ const (widgetHide dialog) -- сокрытие по "Ok"
+   widgetShow dialog
 
 
 -- Заменяет юникоды вида "\1077" в строках, которые создают функции вроде 
 -- print/show на читаемые символы.
 toReadable :: String -> String
 toReadable str = replace ( str =~ "\\\\([0-9]{4})" )
-    where replace :: (String, String, String, [String]) -> String
-          replace (before, [], [], []) = before
-          replace (before, matched, after, groups) =
-              let readable = chr $ read $ head groups
-              in before ++ [ readable ] ++ toReadable after
+   where replace :: (String, String, String, [String]) -> String
+         replace (before, [], [], []) = before
+         replace (before, matched, after, groups) =
+            let readable = chr $ read $ head groups
+            in before ++ [ readable ] ++ toReadable after
 
 
 -- Приводит набор компонент адреса к читаемой строке
@@ -49,33 +49,33 @@ genLabel text = do
 
 
 addCell table x y widget =
-    tableAttach table widget
-        x (x+1)       -- колонка слева/справа
-        y (y+1)       -- строка сверху/снизу
-        [Fill] [Fill] -- horizontal/vertical resizing
-        0 0           -- padding горизонтальный/вертикальный
+   tableAttach table widget
+      x (x+1)       -- колонка слева/справа
+      y (y+1)       -- строка сверху/снизу
+      [Fill] [Fill] -- horizontal/vertical resizing
+      0 0           -- padding горизонтальный/вертикальный
 
 
 -- Удаляет содержимое контейнера
 destroyChildren container =
-    containerGetChildren container >>= mapM_ widgetDestroy
+   containerGetChildren container >>= mapM_ widgetDestroy
 
 
 
 getFileName :: Maybe FilePath -> String
 getFileName = decode . pack . fromJust
-    -- dev-haskell/gtk-0.12.4 имеет проблему кодировки при получении имени 
-    -- файла из GtkFileChooserButton. Похоже, что она использует UTF-8 вместо 
-    -- встроенной в хаскель юникодной кодировки. Поэтому использую специальный 
-    -- хак для извлечения текста.
+   -- dev-haskell/gtk-0.12.4 имеет проблему кодировки при получении имени файла 
+   -- из GtkFileChooserButton. Похоже, что она использует UTF-8 вместо 
+   -- встроенной в хаскель юникодной кодировки. Поэтому использую специальный 
+   -- хак для извлечения текста.
 
 
 
 meta text =
-    "<span fgcolor=\"#6D6D6D\" \
-    \>" ++ text ++ "</span>"
+   "<span fgcolor=\"#6D6D6D\" \
+   \>" ++ text ++ "</span>"
 
 
 italicMeta text =
-    "<span fgcolor=\"#6D6D6D\" style=\"italic\" \
-    \>" ++ text ++ "</span>"
+   "<span fgcolor=\"#6D6D6D\" style=\"italic\" \
+   \>" ++ text ++ "</span>"
