@@ -3,7 +3,7 @@ module Data.Analysis where
 
 
 import Text.EditDistance
-import Data.List (find, groupBy, intersectBy, sortBy)
+import Data.List (find, groupBy, deleteFirstsBy, sortBy)
 import Data.Maybe (fromJust)
 import Data.Either (rights)
 import Data.Char (toLower)
@@ -15,7 +15,7 @@ import Address.Types (Component, isRoad, getRoad)
 
 
 toSet :: [Parsed] -> Set.Set [Component]
-toSet = Set.fromList . rights . map parsedValue
+toSet = Set.fromList . rights . map parsedComps
 
 
 
@@ -66,8 +66,8 @@ matchedCount xs ys = Set.size $ toSet xs `Set.intersection` toSet ys
 
 -- Формирует список дубликатов (одинаковое множество компонент)
 -- Возвращает количество повторений каждого из дубликатов
-duplicates :: [Parsed] -> [(Int, Parsed)]
-duplicates ps = [ (count, dup)
+duplicates :: [Parsed] -> [(Parsed, Int)]
+duplicates ps = [ (dup, count)
                 | dups@(dup:_) <- groupBy sameAddr ps
                 , let count = length dups
                 , count > 1
@@ -77,7 +77,7 @@ duplicates ps = [ (count, dup)
 
 -- Формирует список не распарсенных адресов в группе
 notParsed :: [Parsed] -> [Parsed]
-notParsed = filter (isLeft . parsedValue)
+notParsed = filter (isLeft . parsedComps)
    where isLeft (Left _) = True
          isLeft _ = False
 
@@ -104,23 +104,23 @@ notMatched xs ys =
    | let withPair = toSet xs `Set.intersection` toSet ys
        -- Адреса 1-й группы, которым есть пара во 2-й
 
-   , p@(Parsed _ (Right comps)) <- intersectBy sameAddr xs ys
+   , p@(Parsed _ (Right noPairComps)) <- deleteFirstsBy sameAddr xs ys
        -- Адрес 1-й группы без пары во 2-й
 
-   , let alts = case find isRoad comps of
-           Nothing   -> Left "В адресе нет названия дороги!"
-           Just road -> Right $
-              sortBy (\ (_,x,_) (_,y,_) -> y `compare` x)
-              [ (real, fit, matched)
-              | let road' = getRoad road
-                    max   = maxDistance road'
-              , Parsed (Address real fake context) parsed <- ys
-              , let fit = road' `icSearchIn` fake
-              , fit < max
-              , let matched = either (const False)
-                                     (`Set.member` withPair)
-                                     parsed
-              ]
+   , let alts = case isRoad `find` noPairComps of
+            Nothing   -> Left "В адресе нет названия дороги!"
+            Just road -> Right $
+               sortBy (\ (_,x,_) (_,y,_) -> y `compare` x)
+                      [ (string, fit, matched)
+                      | let road' = getRoad road
+                            max   = maxDistance road'
+                      , Parsed (Address string origin context) comps <- ys
+                      , let fit = road' `icSearchIn` string
+                      , fit < max
+                      , let matched = either (const False)
+                                             (`Set.member` withPair)
+                                             comps
+                      ]
    ]
 
    where

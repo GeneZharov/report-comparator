@@ -2,18 +2,25 @@ module Data.Types where
 import Text.Parsec.Error (ParseError)
 import Address.Types (Component)
 
-
 type ErrMsg   = String
 
+data Origin = Photos FilePath
+            | Notes  FilePath
+                     String -- имя страницы
+                     Int    -- столбец
+                     Int    -- строка
+              deriving (Show)
 
 data Address = Address {
-     addressReal    :: String -- оригинал адреса из имени файла или строки в отчёте
-   , addressFake    :: String -- отредактированный пользователем оригинал адреса
-   , addressContext :: String -- строка отчёта или полный путь до файла фотографии
+     addressString  :: String
+        -- Оригинал адреса из имени файла или строки в отчёте
+   , addressOrigin  :: Origin
+        -- Происхождение адреса
+   , addressContext :: String
+        -- Строка отчёта или полный путь до файла фотографии
    } deriving (Show)
 
-
 data Parsed = Parsed {
-     parsedData  :: Address
-   , parsedValue :: Either ParseError [Component]
+     parsedAddress :: Address
+   , parsedComps   :: Either ParseError [Component]
    } deriving (Show)

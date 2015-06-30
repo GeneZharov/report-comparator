@@ -27,8 +27,8 @@ main = do
    -- Обновление preview
    photos      <- builderGetObject b castToFileChooserButton "photos"
    notesSheets <- builderGetObject b castToComboBox "notesSheets"
-   afterCurrentFolderChanged photos (updatePhotosPreview b)
-   after notesSheets changed (updateNotesPreview b)
+   --afterCurrentFolderChanged photos (updatePhotosPreview b)
+   --after notesSheets changed (updateNotesPreview b)
 
    -- Клик по "Сравнить"
    submit <- builderGetObject b castToButton "submit"

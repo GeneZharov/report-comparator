@@ -19,7 +19,7 @@ alert parentWin msg = do
 genLabel :: String -> IO Label
 genLabel text = do
     label <- labelNew Nothing
-    miscSetAlignment label  0 0
+    miscSetAlignment label 0 0
     labelSetMarkup label text
     return label
 

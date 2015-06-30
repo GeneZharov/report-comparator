@@ -2,16 +2,72 @@ module Main.Body where
 
 
 
+import Data.Maybe (isNothing)
+import Control.Exception
 import Data.List (sortBy)
 import Data.Ord (comparing)
 import Graphics.UI.Gtk.Builder
 import Graphics.UI.Gtk
 import Control.Monad
+import System.FilePath (replaceBaseName)
+import System.Directory (renameFile, removeFile)
 
+import Address.Main (parseAddr)
 import Utils.Addr
 import Utils.GTK
 import Data.Types
+import Data.Extraction
 import Data.Analysis (matchedCount, duplicates, notParsed, notMatched)
+
+
+
+compareReports :: Builder -> IO ()
+compareReports b = do
+
+   photos        <- builderGetObject b castToFileChooserButton "photos"
+   notes         <- builderGetObject b castToFileChooserButton "notes"
+   photosDirMode <- builderGetObject b castToComboBox "photosDirMode"
+   notesColumn   <- builderGetObject b castToSpinButton "notesColumn"
+   notesSheets   <- builderGetObject b castToComboBox "notesSheets"
+
+   --photosDir <- fileChooserGetFilename photos
+   --notesFile <- fileChooserGetFilename notes
+   --dirMode   <- liftM (== 0) (comboBoxGetActive photosDirMode)
+   --colNum    <- spinButtonGetValueAsInt notesColumn
+   --Just sheetName <- comboBoxGetActiveText notesSheets
+   let photosDir = Just "/_reports/friso-test"
+       notesFile = Just "/_reports/2014.09.15.xls"
+       sheetName = "ФРИСОЛАК"
+       dirMode   = False
+       colNum    = 4
+
+   if any isNothing [photosDir, notesFile]
+   then do
+      mainWindow <- builderGetObject b castToWindow "mainWindow"
+      alert mainWindow "Заданы не все данные"
+   else do
+      photos <- try $ fromPhotos dirMode (getFileName photosDir)
+      notes  <- try $ fromNotes sheetName (colNum - 1) (getFileName notesFile)
+      case (photos, notes) of
+         (Left err, _) -> report b err
+         (_, Left err) -> report b err
+         (Right photos', Right notes') -> do
+            draw b (parse photos') (parse notes')
+               -- `catch` \ (e :: SomeException)
+               --        -> alert mainWindow (show e)
+
+   where
+
+      parse :: [Address] -> [Parsed]
+      parse as = [ Parsed a c
+                 | a@(Address s _ _) <- as
+                 , let c = parseAddr s
+                 ]
+
+      report :: Builder -> IOError -> IO ()
+      report b err = do
+         mainWindow <- builderGetObject b castToWindow "mainWindow"
+         alert mainWindow (show err)
 
 
 
@@ -20,26 +76,26 @@ draw :: Builder -> [Parsed] -> [Parsed] -> IO ()
 draw b photos notes = do
 
    let bothMatched      = matchedCount photos notes
-       photosDuplicates = duplicates   photos
        photosNotParsed  = notParsed    photos
-       photosNotMatched = notMatched   photos notes
-       notesDuplicates  = duplicates   notes
        notesNotParsed   = notParsed    notes
+       photosDuplicates = duplicates   photos
+       notesDuplicates  = duplicates   notes
+       photosNotMatched = notMatched   photos notes
        notesNotMatched  = notMatched   notes  photos
 
    -- Количество адресов каждого типа
    drawStat b "photosStat"
-      (length photos)
-      bothMatched
-      (length photosDuplicates)
-      (length photosNotParsed)
-      (length photosNotMatched)
+            (length photos)
+            bothMatched
+            (length photosDuplicates)
+            (length photosNotParsed)
+            (length photosNotMatched)
    drawStat b "notesStat"
-      (length notes)
-      bothMatched
-      (length notesDuplicates)
-      (length notesNotParsed)
-      (length notesNotMatched)
+            (length notes)
+            bothMatched
+            (length notesDuplicates)
+            (length notesNotParsed)
+            (length notesNotMatched)
 
    -- Адреса, которые не удалось распарсить
    drawNotParsed b "photosNotParsed" photosNotParsed
@@ -98,13 +154,55 @@ drawMatched b labelID count = do
 
 
 
+-- Отрисовывает не распарсенные адреса.
+-- Принимает набор данных и id виджета, в который вставлять результат.
+drawNotParsed :: Builder -> String -> [Parsed] -> IO ()
+drawNotParsed b containerID model = do
+
+   -- Создание таблицы
+   table <- tableNew (length model) 3 False -- строк, столбцов, homogeneous
+   tableSetRowSpacings table 7
+   tableSetColSpacings table 7
+
+   -- Наполнение таблицы строками
+   if null model
+   then genLabel (italicMeta "Пусто") >>= addCell table 0 0
+   else let model' = sortBy ( \ (Parsed (Address x _ _) _)
+                                (Parsed (Address y _ _) _)
+                              -> x `compare` y
+                            ) model
+        in forM_ ([0..] `zip` model')
+           $ \ (i, parsed@(Parsed (Address string _ _) _)) -> do
+
+              -- Строка адреса
+              label <- genLabel string
+              labelSetSelectable label True
+              miscSetAlignment label 0 0.5
+              addCell table 1 i label
+              --genLabel "Error not implemented" >>= addCell table 1 i
+
+              -- Кнопка редактирования адреса
+              editButton <- buttonNew
+              buttonSetImage editButton
+                 =<< imageNewFromStock stockEdit (IconSizeUser 1)
+              after editButton buttonActivated (editAddress b parsed)
+              addCell table 0 i editButton
+
+   -- Таблица помещается в контейнер и показывается результат
+   alignment <- builderGetObject b castToAlignment containerID
+   destroyChildren alignment
+   containerAdd alignment table
+   widgetShowAll table
+
+
+
 -- Отрисовывает дубликаты адресов.
 -- Принимает набор данных и id виджета, в который вставлять результат.
-drawDuplicates :: Builder -> String -> [(Int, Parsed)] -> IO ()
+drawDuplicates :: Builder -> String -> [(Parsed, Int)] -> IO ()
 drawDuplicates b containerID model = do
 
    -- Создаю таблицу
-   table <- tableNew (length model) 2 False
+   table <- tableNew (length model) 3 False
       -- Количество строк, столбцов, homogeneous
    tableSetRowSpacings table 7
    tableSetColSpacing table 0 7 -- номер колонки, количество пикселей
@@ -112,24 +210,11 @@ drawDuplicates b containerID model = do
    -- Наполняю таблицу строками
    if null model
    then genLabel (italicMeta "Пусто") >>= addCell table 0 0
-   else forM_ (zip [0..] model) $
-      \ ( dupNum
-        ,  ( dupsCount
-           , Parsed (Address real _ _) (Right comps)
-           )
-        ) -> do
-
-           -- Ячейка с текстом адреса
-           srcLabel <- genLabel real
-           set srcLabel [
-               widgetTooltipText := Just (format comps)
-             , labelSelectable := True
-             ]
-           addCell table 0 dupNum srcLabel
-
-           -- Ячейка с количеством дубликатов
-           genLabel ("— " ++ show dupsCount ++ " шт.")
-              >>= addCell table 1 dupNum
+   else let model' = sortBy ( \ ((Parsed (Address x _ _) _), _)
+                                ((Parsed (Address y _ _) _), _)
+                              -> x `compare` y
+                            ) model
+        in addLine table `mapM_` zip [0..] model'
 
    -- Подставляю таблицу в контейнер и показываю результат
    alignment <- builderGetObject b castToAlignment containerID
@@ -137,32 +222,36 @@ drawDuplicates b containerID model = do
    containerAdd alignment table
    widgetShowAll table
 
+   where
 
+      addLine :: Table -> (Int, (Parsed, Int)) -> IO ()
+      addLine table
+              ( dupNumber
+              ,  ( parsed@(Parsed (Address string _ _) (Right comps))
+                 , dupsCount
+                 )
+              ) = do
 
--- Отрисовывает не распарсенные адреса.
--- Принимает набор данных и id виджета, в который вставлять результат.
-drawNotParsed :: Builder -> String -> [Parsed] -> IO ()
-drawNotParsed b containerID model = do
+         -- Ячейка с текстом адреса
+         srcLabel <- genLabel string
+         set srcLabel [
+             widgetTooltipText := Just (format comps)
+           , labelSelectable := True
+           ]
+         miscSetAlignment srcLabel 0 0.5
+         addCell table 1 dupNumber srcLabel
 
-   -- Создаю таблицу
-   table <- tableNew (length model) 2 False
-       -- Количество строк, столбцов, homogeneous
-   tableSetRowSpacings table 7
+         -- Кнопка редактирования адреса
+         editButton <- buttonNew
+         buttonSetImage editButton
+            =<< imageNewFromStock stockEdit (IconSizeUser 1)
+         after editButton buttonActivated (editAddress b parsed)
+         addCell table 0 dupNumber editButton
 
-   -- Наполняю таблицу строками
-   if null model
-   then genLabel (italicMeta "Пусто") >>= addCell table 0 0
-   else forM_ (zip [0..] model) $ \ (i, Parsed (Address real _ _) _) -> do
-           label <- genLabel real
-           labelSetSelectable label True
-           addCell table 0 i label
-           --genLabel "Error not implemented" >>= addCell table 1 i
-
-   -- Подставляю таблицу в контейнер и показываю результат
-   alignment <- builderGetObject b castToAlignment containerID
-   destroyChildren alignment
-   containerAdd alignment table
-   widgetShowAll table
+         -- Ячейка с количеством дубликатов
+         countLabel <- genLabel ("— " ++ show dupsCount ++ " шт.")
+         addCell table 2 dupNumber countLabel
+         miscSetAlignment countLabel 0 0.5
 
 
 
@@ -187,46 +276,11 @@ drawNotMatched b containerID model = do
    -- Генерю строки с адресами, которым не нашлось пары
    if null model
    then genLabel (italicMeta "Пусто") >>= addCell table 0 0
-   else forM_ (zip [1..] model) $
-      \ ( i
-        ,  ( Parsed (Address real _ _) (Right comps)
-           , options
-           )
-        ) -> do
-
-           -- Линия-разделитель
-           separator <- hSeparatorNew
-           tableAttach table separator 0 2 (2*i) (2*i+1) [Fill] [] 0 0
-
-           -- Строка адреса без пары
-           leftLabel <- genLabel real
-           set leftLabel [
-               widgetTooltipText := Just (format comps)
-             , labelSelectable := True
-             ]
-           --labelSetSelectable leftLabel True
-           addCell table 0 (i*2+1) leftLabel
-
-           -- Похожие адреса
-           case options of
-              Left err -> do
-                 errorLabel <- genLabel (italicMeta err)
-                 labelSetSelectable errorLabel True
-                 addCell table 1 (i*2+1) errorLabel
-              Right options' -> do
-                 vbox <- vBoxNew True 7 -- homogeneous, spacing
-                 forM_ options' $ \ (addr, fit, matched) -> do
-                    -- Создаю одну из альтернатив
-                    hbox <- hBoxNew False 7
-                    boxSetHomogeneous hbox False
-                    alt <- genLabel addr
-                    labelSetSelectable alt True
-                    boxPackStart hbox alt PackNatural 0
-                    when matched $ do
-                        pairedLabel <- genLabel (italicMeta "— уже имеет пару")
-                        boxPackStart hbox pairedLabel PackNatural 0
-                    boxPackEndDefaults vbox hbox -- Добавляю hbox в конец vbox
-                 addCell table 1 (i*2+1) vbox
+   else let model' = sortBy ( \ ((Parsed (Address x _ _) _), _)
+                                ((Parsed (Address y _ _) _), _)
+                              -> x `compare` y
+                            ) model
+        in addLine table `mapM_` zip [1..] model'
 
    -- Подставляю таблицу в контейнер и показываю результат
    alignment <- builderGetObject b castToAlignment containerID
@@ -234,7 +288,164 @@ drawNotMatched b containerID model = do
    containerAdd alignment table
    widgetShowAll table
 
-   where isLeft (Left _)     = True
-         isLeft (Right _)    = False
-         fromLeft (Left x)   = x
-         fromRight (Right x) = x
+   where
+
+
+      isLeft (Left _)     = True
+      isLeft (Right _)    = False
+
+      fromLeft (Left x)   = x
+      fromRight (Right x) = x
+
+
+      addLine :: Table
+              -> ( Int
+                 ,  ( Parsed
+                    , Either ErrMsg [(String, Int, Bool)]
+                    )
+                 )
+              -> IO ()
+      addLine table
+              ( i
+              ,  ( parsed@(Parsed (Address string _ _) (Right comps))
+                 , options
+                 )
+              ) = do
+
+         -- Линия-разделитель
+         separator <- hSeparatorNew
+         tableAttach table separator 0 3 (2*i) (2*i+1) [Fill] [] 0 0
+
+         -- Строка адреса без пары
+         leftLabel <- genLabel string
+         set leftLabel [
+             widgetTooltipText := Just (format comps)
+           , labelSelectable := True
+           ]
+         --labelSetSelectable leftLabel True
+         miscSetAlignment leftLabel 0 0.5
+
+         -- Кнопка редактирования адреса
+         editButton <- buttonNew
+         buttonSetImage editButton
+            =<< imageNewFromStock stockEdit (IconSizeUser 1)
+         after editButton buttonActivated (editAddress b parsed)
+
+         hbox <- hBoxNew False 7
+         containerAdd hbox editButton
+         containerAdd hbox leftLabel
+         boxSetChildPacking hbox editButton PackNatural 0 PackStart
+         addCell table 0 (i*2+1) hbox
+         set table [ tableChildYOptions hbox := [] ]
+
+         -- Похожие адреса
+         case options of
+            Left err -> do
+               errorLabel <- genLabel (italicMeta err)
+               labelSetSelectable errorLabel True
+               miscSetAlignment errorLabel 0 0.5
+               addCell table 1 (i*2+1) errorLabel
+            Right options' -> do
+               vbox <- vBoxNew True 7 -- homogeneous, spacing
+               forM_ options' $ \ (addr, fit, matched) -> do
+                  -- Создаю одну из альтернатив
+                  hbox <- hBoxNew False 7
+                  boxSetHomogeneous hbox False
+                  alt <- genLabel addr
+                  labelSetSelectable alt True
+                  miscSetAlignment alt 0 0.5
+                  boxPackStart hbox alt PackNatural 0
+                  when matched $ do
+                      pairedLabel <- genLabel (italicMeta "— уже имеет пару")
+                      boxPackStart hbox pairedLabel PackNatural 0
+                  boxPackEndDefaults vbox hbox -- Добавляю hbox в конец vbox
+               addCell table 1 (i*2+1) vbox
+
+
+
+editAddress :: Builder -> Parsed -> IO ()
+editAddress b (Parsed (Address string origin context) parsed) = do
+   -- Создаю диалоговое окно в коде, а не в glade, потому что:
+   --
+   -- glade не позволяет привязать к кнопкам сигнал response;
+   --
+   -- gtk2hs не позволяет навесить однократный обработчик сигнала при каждом 
+   -- открытии диалога. Это означает, что либо при каждом открытии будут 
+   -- навешиваться новые и новые обработчики на этот диалог, либо навешивать 
+   -- обработчики диалога вне обработчика клика по кнпоке открытия диалога, 
+   -- тогда я не буду иметь доступа к данным вроде Label отчёта;
+
+   let parsed' = case parsed of
+                    Right comps -> format comps
+                    Left err    -> show err
+
+   -- Dialog
+   d <- dialogNew
+   set d [ windowTitle := "Редактирование адреса" ]
+   containerSetBorderWidth d 10
+
+   -- Кнопки
+   saveButton <- dialogAddButton d "Сохранить" ResponseAccept
+   dialogAddButton d "Отмена"    ResponseCancel
+   --dialogAddButton d "Удалить"   ResponseReject
+   dialogSetDefaultResponse d ResponseAccept
+   case origin of
+      -- TODO: Костыль, пока не реализовано редактирование таблицы
+      Photos _      -> return ()
+      Notes _ _ _ _ -> do
+         widgetSetSensitive saveButton False
+         set saveButton [ widgetTooltipText := Just "Не реализовано" ]
+
+   -- Table
+   t <- tableNew 3 2 False -- rows columns homogeneous
+   tableSetRowSpacings t 14
+   tableSetColSpacings t 14
+   containerSetBorderWidth t 5 -- выравниваю содержимое таблицы с кнопками
+   flip containerAdd t =<< dialogGetUpper d
+
+   -- Колонка названий
+   addressLabel <- labelNew (Just "Адрес:")
+   parsedLabel  <- labelNew (Just "Результат разбора:")
+   sourceLabel  <- labelNew (Just "Исходник:")
+   miscSetAlignment addressLabel 1 0.5 -- xAlign yAlign
+   miscSetAlignment parsedLabel  1 0   -- xAlign yAlign
+   miscSetAlignment sourceLabel  1 0   -- xAlign yAlign
+   tableAttach t addressLabel 0 1 0 1 [Fill] [Expand, Fill] 0 0
+   tableAttach t parsedLabel  0 1 1 2 [Fill] [Expand, Fill] 0 0
+   tableAttach t sourceLabel  0 1 2 3 [Fill] [Expand, Fill] 0 0
+
+   -- Колонка значений
+   addressValue <- entryNew
+   parsedValue  <- labelNew (Just parsed')
+   sourceValue  <- labelNew (Just context)
+   entrySetText addressValue string
+   entrySetActivatesDefault addressValue True
+   miscSetAlignment parsedValue 0 0 -- xAlign yAlign
+   miscSetAlignment sourceValue 0 0 -- xAlign yAlign
+   tableAttachDefaults t addressValue 1 2 0 1
+   tableAttachDefaults t parsedValue  1 2 1 2
+   tableAttachDefaults t sourceValue  1 2 2 3
+   labelSetSelectable parsedValue True
+   labelSetSelectable sourceValue True
+   labelSetLineWrapMode parsedValue WrapPartialWords
+   labelSetLineWrapMode sourceValue WrapPartialWords
+   labelSetLineWrap parsedValue True
+   labelSetLineWrap sourceValue True
+
+   -- События
+   on d response $ \ responseID -> case responseID of
+      ResponseAccept -> do
+         newAddr <- entryGetText addressValue
+         when (newAddr /= string)
+            $ case origin of
+                 Notes file sheet col row -> undefined
+                 Photos file -> do
+                    renameFile file (replaceBaseName file newAddr)
+                    compareReports b
+      -- ResponseReject -> removeFile file
+         -- TODO: пока удалить адрес нельзя из соображений безопасности
+      _ -> return ()
+
+   widgetShowAll d
+   dialogRun d
+   widgetDestroy d

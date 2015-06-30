@@ -9,6 +9,5 @@ import Utils.ToReadable
 format :: [Component] -> String
 format = init . tail -- обрезаю фигурные скобки
        . map newlines . toReadable . show
-    where newlines c | c == ',' = '\n'
+    where newlines c | c == ',' = '\n' -- заменяет запятую на перенос строки
           newlines c = c
-          -- Заменяет запятую на перенос строки

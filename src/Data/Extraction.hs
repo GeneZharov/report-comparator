@@ -45,11 +45,11 @@ fromPhotos dirMode dir = do
            -- Если в каталоге нет ни одного подкаталога,
            -- значит имя каталога содержит искомый адрес.
            let name = takeFileName dir
-           in return [ Address name name dir ]
+           in return [ Address name (Photos dir) dir ]
         else
            -- Если в каталоге нет ни одного подкаталога, значит адреса 
            -- содержатся в непосредственном содержимом каталога.
-           return [ Address name name file
+           return [ Address name (Photos file) file
                   | file <- files
                   , let name = cropCopy (takeBaseName file)
                   ]
@@ -67,8 +67,8 @@ fromNotes :: String -> Int -> FilePath -> IO [Address]
 fromNotes sheet col file = do
    pyFile <- getDataFileName "tables/addresses"
    pyOut  <- pythonStdout $ proc "python" [pyFile, file, sheet]
-   return [ Address name name ctx
-          | line <- splitOn "\0" pyOut
+   return [ Address name (Notes file sheet col row) ctx
+          | (row, line) <- [0..] `zip` splitOn "\0" pyOut
           , let names = lines line :: [String]
           , col < length names
           , let name  = names !! col
