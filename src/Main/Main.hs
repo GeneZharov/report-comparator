@@ -20,15 +20,15 @@ main = do
    photosDirMode <- builderGetObject b castToComboBox "photosDirMode"
    comboBoxSetActive photosDirMode 0
 
-   -- Выбор файла с табличным отчётом обновляет меню страниц таблицы
+   -- Обновление меню страниц таблицы
    notes <- builderGetObject b castToFileChooserButton "notes"
    afterCurrentFolderChanged notes (updateSheets b)
 
    -- Обновление preview
    photos      <- builderGetObject b castToFileChooserButton "photos"
    notesSheets <- builderGetObject b castToComboBox "notesSheets"
-   --afterCurrentFolderChanged photos (updatePhotosPreview b)
-   --after notesSheets changed (updateNotesPreview b)
+   afterCurrentFolderChanged photos (updatePhotosPreview b)
+   after notesSheets changed (updateNotesPreview b)
 
    -- Клик по "Сравнить"
    submit <- builderGetObject b castToButton "submit"
