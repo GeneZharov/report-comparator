@@ -316,14 +316,20 @@ drawNotMatched b containerID model = do
          separator <- hSeparatorNew
          tableAttach table separator 0 3 (2*i) (2*i+1) [Fill] [] 0 0
 
+         addLeft  table i parsed
+         addRight table i options -- похожие адреса
+
+
+      addLeft :: Table -> Int -> Parsed -> IO ()
+      addLeft table i parsed@(Parsed (Address string _ _) (Right comps)) = do
+
          -- Строка адреса без пары
-         leftLabel <- genLabel string
+         leftLabel <- labelNew (Just string)
+         miscSetAlignment leftLabel 0 0.5
          set leftLabel [
              widgetTooltipText := Just (format comps)
            , labelSelectable := True
            ]
-         --labelSetSelectable leftLabel True
-         miscSetAlignment leftLabel 0 0.5
 
          -- Кнопка редактирования адреса
          editButton <- buttonNew
@@ -331,35 +337,42 @@ drawNotMatched b containerID model = do
             =<< imageNewFromStock stockEdit (IconSizeUser 1)
          after editButton buttonActivated (editAddress b parsed)
 
-         hbox <- hBoxNew False 7
+         hbox <- hBoxNew False 7 -- spacing
          containerAdd hbox editButton
          containerAdd hbox leftLabel
          boxSetChildPacking hbox editButton PackNatural 0 PackStart
-         addCell table 0 (i*2+1) hbox
-         set table [ tableChildYOptions hbox := [] ]
 
-         -- Похожие адреса
-         case options of
-            Left err -> do
-               errorLabel <- genLabel (italicMeta err)
-               labelSetSelectable errorLabel True
-               miscSetAlignment errorLabel 0 0.5
-               addCell table 1 (i*2+1) errorLabel
-            Right options' -> do
-               vbox <- vBoxNew True 7 -- homogeneous, spacing
-               forM_ options' $ \ (addr, fit, matched) -> do
-                  -- Создаю одну из альтернатив
-                  hbox <- hBoxNew False 7
-                  boxSetHomogeneous hbox False
-                  alt <- genLabel addr
-                  labelSetSelectable alt True
-                  miscSetAlignment alt 0 0.5
-                  boxPackStart hbox alt PackNatural 0
-                  when matched $ do
-                      pairedLabel <- genLabel (italicMeta "— уже имеет пару")
-                      boxPackStart hbox pairedLabel PackNatural 0
-                  boxPackEndDefaults vbox hbox -- Добавляю hbox в конец vbox
-               addCell table 1 (i*2+1) vbox
+         -- Чтобы адрес с кнопкой был сверху, а не по центру, они кладутся в 
+         -- начало vbox'а. Далее в vbox создаётся ещё один слот для виджета, 
+         -- который заполнит пустоту снизу.
+         vbox <- vBoxNew False 0 -- spacing
+         containerAdd vbox hbox
+         containerAdd vbox =<< alignmentNew 0 0 1 1
+         boxSetChildPacking vbox hbox PackNatural 0 PackStart
+         addCell table 0 (i*2+1) vbox
+
+
+      addRight :: Table -> Int -> Either ErrMsg [(String, Int, Bool)] -> IO ()
+      addRight table i (Left err) = do
+         errorLabel <- genLabel (italicMeta err)
+         labelSetSelectable errorLabel True
+         miscSetAlignment errorLabel 0 0.5
+         addCell table 1 (i*2+1) errorLabel
+      addRight table i (Right options) = do
+         vbox <- vBoxNew True 13 -- homogeneous, spacing
+         forM_ options $ \ (addr, fit, matched) -> do
+            -- Создаю одну из альтернатив
+            hbox <- hBoxNew False 7
+            boxSetHomogeneous hbox False
+            alt <- genLabel addr
+            labelSetSelectable alt True
+            miscSetAlignment alt 0 0.5
+            boxPackStart hbox alt PackNatural 0
+            when matched $ do
+                pairedLabel <- genLabel (italicMeta "— уже имеет пару")
+                boxPackStart hbox pairedLabel PackNatural 0
+            boxPackEndDefaults vbox hbox -- добавляю hbox в конец vbox
+         tableAttach table vbox 1 2 (i*2+1) (i*2+2) [Fill] [Fill] 0 6
 
 
 
