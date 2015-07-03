@@ -21,7 +21,7 @@ data-files:
   , tables/sheet-names
 
 
-executable comparator
+executable a-comp
   default-language: Haskell2010
   hs-source-dirs: src
   main-is: Main/Main.hs
@@ -44,3 +44,15 @@ executable comparator
     , transformers
     , split
     , filesystem-trees
+
+
+--executable test
+--  default-language: Haskell2010
+--  hs-source-dirs: src
+--  main-is: Main/Test.hs
+--  build-depends:
+--      base
+--    , russian-address-parser
+--    , parsec
+--    , containers
+--    , edit-distance

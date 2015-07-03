@@ -83,19 +83,19 @@ draw b photos notes = do
        photosNotMatched = notMatched   photos notes
        notesNotMatched  = notMatched   notes  photos
 
-   -- Количество адресов каждого типа
+   -- Статистика
    drawStat b "photosStat"
             (length photos)
-            bothMatched
             (length photosDuplicates)
             (length photosNotParsed)
             (length photosNotMatched)
    drawStat b "notesStat"
             (length notes)
-            bothMatched
             (length notesDuplicates)
             (length notesNotParsed)
             (length notesNotMatched)
+   builderGetObject b castToLabel "matchedCount"
+      >>= flip labelSetText (show bothMatched ++ " — соответствий")
 
    -- Адреса, которые не удалось распарсить
    drawNotParsed b "photosNotParsed" photosNotParsed
@@ -125,17 +125,15 @@ draw b photos notes = do
 
 
 
-drawStat :: Builder -> String -> Int -> Int -> Int -> Int -> Int -> IO ()
-drawStat b containerID total matched duplicates notParsed notMatched =
+drawStat :: Builder -> String -> Int -> Int -> Int -> Int -> IO ()
+drawStat b containerID total duplicates notParsed notMatched =
    let stat = zip [0..]
             . filter ( (>0) . fst )
             . sortBy (flip (comparing fst))
-            $ [
-                  ( total      , "— всего" )
-              ,   ( matched    , "— есть соответствия" )
-              ,   ( duplicates , "— дубликаты" )
-              ,   ( notParsed  , "— не поддаются анализу" )
-              ,   ( notMatched , "— нет соответствий" )
+            $ [ ( total      , "— всего" )
+              , ( duplicates , "— дубликаты" )
+              , ( notParsed  , "— непонятны" )
+              , ( notMatched , "— без пары" )
               ]
    in do
       table <- builderGetObject b castToTable containerID
@@ -202,9 +200,9 @@ drawDuplicates :: Builder -> String -> [(Parsed, Int)] -> IO ()
 drawDuplicates b containerID model = do
 
    -- Создаю таблицу
-   table <- tableNew (length model) 3 False
+   table <- tableNew (length model) 2 False
       -- Количество строк, столбцов, homogeneous
-   tableSetRowSpacings table 7
+   tableSetRowSpacings table 13
    tableSetColSpacing table 0 7 -- номер колонки, количество пикселей
 
    -- Наполняю таблицу строками
@@ -239,18 +237,18 @@ drawDuplicates b containerID model = do
            , labelSelectable := True
            ]
          miscSetAlignment srcLabel 0 0.5
-         addCell table 1 dupNumber srcLabel
+         addCell table 0 dupNumber srcLabel
 
-         -- Кнопка редактирования адреса
-         editButton <- buttonNew
-         buttonSetImage editButton
-            =<< imageNewFromStock stockEdit (IconSizeUser 1)
-         after editButton buttonActivated (editAddress b parsed)
-         addCell table 0 dupNumber editButton
+         {- Выравнивание слева от адреса по ширине кнопке редактирования
+         align <- alignmentNew 0.5 0.5 1 1
+         set align [ alignmentLeftPadding := 30 ]
+         containerAdd align srcLabel
+         addCell table 0 dupNumber align
+         -}
 
          -- Ячейка с количеством дубликатов
          countLabel <- genLabel ("— " ++ show dupsCount ++ " шт.")
-         addCell table 2 dupNumber countLabel
+         addCell table 1 dupNumber countLabel
          miscSetAlignment countLabel 0 0.5
 
 
@@ -258,9 +256,8 @@ drawDuplicates b containerID model = do
 -- Отрисовывает адреса без пары. Принимает набор данных и идентификатор 
 -- виджета, в который вставлять результат.
 drawNotMatched :: Builder -> String
-               -> [(
-                     Parsed,
-                     Either ErrMsg [(String, Int, Bool)]
+               -> [( Parsed
+                  ,  Either ErrMsg [(String, Int, Bool)]
                   )]
                -> IO ()
 drawNotMatched b containerID model = do
@@ -326,8 +323,8 @@ drawNotMatched b containerID model = do
          -- Строка адреса без пары
          leftLabel <- labelNew (Just string)
          miscSetAlignment leftLabel 0 0.5
-         set leftLabel [
-             widgetTooltipText := Just (format comps)
+         set leftLabel
+           [ widgetTooltipText := Just (format comps)
            , labelSelectable := True
            ]
 

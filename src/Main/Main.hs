@@ -6,19 +6,25 @@ import Main.Header
 import Main.Body
 
 
-main :: IO ()
-main = do
 
-   initGUI
-   b <- builderNew
-   getDataFileName "main.glade" >>= builderAddFromFile b
-   mainWindow <- builderGetObject b castToWindow "mainWindow"
-   windowMaximize mainWindow
-   onDestroy mainWindow mainQuit
+-- Настройки, которые не удаётся сделать через glade
+prepareGUI :: Builder -> IO ()
+prepareGUI b = do
 
-   -- Атрибут, который не удаётся задать через glade
+   lightBG =<< builderGetObject b castToViewport "photosVP"
+   lightBG =<< builderGetObject b castToViewport "notesVP"
+
    photosDirMode <- builderGetObject b castToComboBox "photosDirMode"
    comboBoxSetActive photosDirMode 0
+
+   where lightBG :: Viewport -> IO ()
+         lightBG vp = widgetModifyBg vp StateNormal (Color c c c)
+            where c = 62000 -- 65535 — максимум
+
+
+
+setupHandlers :: Builder -> IO ()
+setupHandlers b = do
 
    -- Обновление меню страниц таблицы
    notes <- builderGetObject b castToFileChooserButton "notes"
@@ -32,7 +38,22 @@ main = do
 
    -- Клик по "Сравнить"
    submit <- builderGetObject b castToButton "submit"
-   on submit buttonActivated (compareReports b)
+   on submit buttonActivated (compareReports b) >> return ()
 
-   widgetShowAll mainWindow
+
+
+main :: IO ()
+main = do
+
+   initGUI
+   b <- builderNew
+   getDataFileName "main.glade" >>= builderAddFromFile b
+   mainWindow <- builderGetObject b castToWindow "mainWindow"
+   windowMaximize mainWindow
+   onDestroy mainWindow mainQuit
+
+   prepareGUI b
+   setupHandlers b
+
+   widgetShow mainWindow
    mainGUI

@@ -3,13 +3,14 @@ module Data.Analysis where
 
 
 import Text.EditDistance
-import Data.List (find, groupBy, deleteFirstsBy, sortBy)
+import Data.List (find, deleteFirstsBy, sortBy, (\\), nub, nubBy)
 import Data.Maybe (fromJust)
 import Data.Either (rights)
 import Data.Char (toLower)
 import qualified Data.Set as Set
 
 import Data.Types
+import Utils.Misc (combine)
 import Address.Types (Component, isRoad, getRoad)
 
 
@@ -67,11 +68,9 @@ matchedCount xs ys = Set.size $ toSet xs `Set.intersection` toSet ys
 -- Формирует список дубликатов (одинаковое множество компонент)
 -- Возвращает количество повторений каждого из дубликатов
 duplicates :: [Parsed] -> [(Parsed, Int)]
-duplicates ps = [ (dup, count)
-                | dups@(dup:_) <- groupBy sameAddr ps
-                , let count = length dups
-                , count > 1
-                ]
+duplicates = map (\ xs@(x:_) -> (x, length xs)) -- считаю дубликаты
+           . filter (\ x -> length x > 1)       -- оставляю только дубликаты
+           . combine sameAddr                   -- комбинирую одинаковые адреса
 
 
 
