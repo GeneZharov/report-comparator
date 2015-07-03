@@ -68,7 +68,7 @@ fromNotes sheet col file = do
    pyFile <- getDataFileName "tables/addresses"
    pyOut  <- pythonStdout $ proc "python" [pyFile, file, sheet]
    return [ Address name (Notes file sheet col row) ctx
-          | (row, line) <- [0..] `zip` splitOn "\0" pyOut
+          | (row, line) <- [0..] `zip` splitOn "\0\n" pyOut
           , let names = lines line :: [String]
           , col < length names
           , let name  = names !! col

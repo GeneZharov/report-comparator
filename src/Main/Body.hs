@@ -2,7 +2,7 @@ module Main.Body where
 
 
 
-import Data.Maybe (isNothing)
+import Data.Maybe (isNothing, fromJust)
 import Control.Exception
 import Data.List (sortBy)
 import Data.Ord (comparing)
@@ -30,24 +30,27 @@ compareReports b = do
    notesColumn   <- builderGetObject b castToSpinButton "notesColumn"
    notesSheets   <- builderGetObject b castToComboBox "notesSheets"
 
-   --photosDir <- fileChooserGetFilename photos
-   --notesFile <- fileChooserGetFilename notes
-   --dirMode   <- liftM (== 0) (comboBoxGetActive photosDirMode)
-   --colNum    <- spinButtonGetValueAsInt notesColumn
-   --Just sheetName <- comboBoxGetActiveText notesSheets
-   let photosDir = Just "/_reports/friso-test"
-       notesFile = Just "/_reports/2014.09.15.xls"
-       sheetName = "ФРИСОЛАК"
-       dirMode   = False
-       colNum    = 4
+   photosDir <- fileChooserGetFilename photos
+   notesFile <- fileChooserGetFilename notes
+   dirMode   <- liftM (== 0) (comboBoxGetActive photosDirMode)
+   sheetName <- comboBoxGetActiveText notesSheets
+   colNum    <- spinButtonGetValueAsInt notesColumn
+   --let photosDir = Just "/_reports/friso-test"
+   --    notesFile = Just "/_reports/2014.09.15.xls"
+   --    sheetName = Just "ФРИСОЛАК"
+   --    dirMode   = False
+   --    colNum    = 3
 
-   if any isNothing [photosDir, notesFile]
+   if any isNothing [photosDir, notesFile, sheetName]
    then do
       mainWindow <- builderGetObject b castToWindow "mainWindow"
       alert mainWindow "Заданы не все данные"
    else do
-      photos <- try $ fromPhotos dirMode (getFileName photosDir)
-      notes  <- try $ fromNotes sheetName (colNum - 1) (getFileName notesFile)
+      let sheetName' = fromJust sheetName
+          photosDir' = getFileName photosDir
+          notesFile'  = getFileName notesFile
+      photos <- try $ fromPhotos dirMode photosDir'
+      notes  <- try $ fromNotes sheetName' (colNum-1) notesFile'
       case (photos, notes) of
          (Left err, _) -> report b err
          (_, Left err) -> report b err
