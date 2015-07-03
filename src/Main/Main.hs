@@ -1,6 +1,7 @@
 import Paths_report_comparator
 import Graphics.UI.Gtk
 import Graphics.UI.Gtk.Builder
+import Control.Monad (forM_)
 
 import Main.Header
 import Main.Body
@@ -11,15 +12,16 @@ import Main.Body
 prepareGUI :: Builder -> IO ()
 prepareGUI b = do
 
-   lightBG =<< builderGetObject b castToViewport "photosVP"
-   lightBG =<< builderGetObject b castToViewport "notesVP"
+   -- Цвет фона для вкладок
+   forM_ [ "photosVP", "notesVP", "matchedVP" ]
+       $ \ id -> do
+            let c = 62000 -- 65535 — максимум
+            vp <- builderGetObject b castToViewport id
+            widgetModifyBg vp StateNormal (Color c c c)
 
+   -- Dirmode по умолчанию
    photosDirMode <- builderGetObject b castToComboBox "photosDirMode"
    comboBoxSetActive photosDirMode 0
-
-   where lightBG :: Viewport -> IO ()
-         lightBG vp = widgetModifyBg vp StateNormal (Color c c c)
-            where c = 62000 -- 65535 — максимум
 
 
 

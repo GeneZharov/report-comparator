@@ -17,7 +17,7 @@ import Utils.Addr
 import Utils.GTK
 import Data.Types
 import Data.Extraction
-import Data.Analysis (matchedCount, duplicates, notParsed, notMatched)
+import Data.Analysis
 
 
 
@@ -30,16 +30,16 @@ compareReports b = do
    notesColumn   <- builderGetObject b castToSpinButton "notesColumn"
    notesSheets   <- builderGetObject b castToComboBox "notesSheets"
 
-   photosDir <- fileChooserGetFilename photos
-   notesFile <- fileChooserGetFilename notes
-   dirMode   <- liftM (== 0) (comboBoxGetActive photosDirMode)
-   sheetName <- comboBoxGetActiveText notesSheets
-   colNum    <- spinButtonGetValueAsInt notesColumn
-   --let photosDir = Just "/_reports/friso-test"
-   --    notesFile = Just "/_reports/2014.09.15.xls"
-   --    sheetName = Just "ФРИСОЛАК"
-   --    dirMode   = False
-   --    colNum    = 3
+   --photosDir <- fileChooserGetFilename photos
+   --notesFile <- fileChooserGetFilename notes
+   --dirMode   <- liftM (== 0) (comboBoxGetActive photosDirMode)
+   --sheetName <- comboBoxGetActiveText notesSheets
+   --colNum    <- spinButtonGetValueAsInt notesColumn
+   let photosDir = Just "/_reports/friso-test"
+       notesFile = Just "/_reports/2014.09.15.xls"
+       sheetName = Just "ФРИСОЛАК"
+       dirMode   = False
+       colNum    = 3
 
    if any isNothing [photosDir, notesFile, sheetName]
    then do
@@ -78,13 +78,28 @@ compareReports b = do
 draw :: Builder -> [Parsed] -> [Parsed] -> IO ()
 draw b photos notes = do
 
-   let bothMatched      = matchedCount photos notes
-       photosNotParsed  = notParsed    photos
-       notesNotParsed   = notParsed    notes
-       photosDuplicates = duplicates   photos
-       notesDuplicates  = duplicates   notes
-       photosNotMatched = notMatched   photos notes
-       notesNotMatched  = notMatched   notes  photos
+   let bothMatched      = matched    photos notes
+       photosNotParsed  = notParsed  photos
+       notesNotParsed   = notParsed  notes
+       photosDuplicates = duplicates photos
+       notesDuplicates  = duplicates notes
+       photosNotMatched = notMatched photos notes
+       notesNotMatched  = notMatched notes  photos
+
+   drawNotParsed b "photosNotParsed" photosNotParsed
+   drawNotParsed b "notesNotParsed"  notesNotParsed
+   --print photosNotParsed
+   --print notesNotParsed
+
+   drawDuplicates b "photosDuplicates" photosDuplicates
+   drawDuplicates b "notesDuplicates"  notesDuplicates
+
+   drawNotMatched b "photosNotMatched" photosNotMatched
+   drawNotMatched b "notesNotMatched"  notesNotMatched
+   --print notesNotMatched
+   --print photosNotMatched
+
+   drawMatched b bothMatched
 
    -- Статистика
    drawStat b "photosStat"
@@ -98,25 +113,9 @@ draw b photos notes = do
             (length notesNotParsed)
             (length notesNotMatched)
    builderGetObject b castToLabel "matchedCount"
-      >>= flip labelSetText (show bothMatched ++ " — соответствий")
+      >>= flip labelSetText (show (length bothMatched) ++ " — соответствий")
 
-   -- Адреса, которые не удалось распарсить
-   drawNotParsed b "photosNotParsed" photosNotParsed
-   drawNotParsed b "notesNotParsed"  notesNotParsed
-   --print photosNotParsed
-   --print notesNotParsed
-
-   -- Дубликаты
-   drawDuplicates b "photosDuplicates" photosDuplicates
-   drawDuplicates b "notesDuplicates"  notesDuplicates
-
-   -- Адреса без пары
-   drawNotMatched b "photosNotMatched" photosNotMatched
-   drawNotMatched b "notesNotMatched"  notesNotMatched
-   --print notesNotMatched
-   --print photosNotMatched
-
-   when (bothMatched == 0) $ do
+   when (length bothMatched == 0) $ do
       mainWindow <- builderGetObject b castToWindow "mainWindow"
       alert mainWindow
          "Нет ни одного совпадения адресов.\n\n\
@@ -145,13 +144,6 @@ drawStat b containerID total duplicates notParsed notMatched =
          genLabel (show num) >>= addCell table 0 i
          genLabel text       >>= addCell table 1 i
       widgetShowAll table
-
-
-
-drawMatched :: Builder -> String -> Int -> IO ()
-drawMatched b labelID count = do
-   label <- builderGetObject b castToLabel labelID
-   labelSetMarkup label (show count)
 
 
 
@@ -327,9 +319,9 @@ drawNotMatched b containerID model = do
          leftLabel <- labelNew (Just string)
          miscSetAlignment leftLabel 0 0.5
          set leftLabel
-           [ widgetTooltipText := Just (format comps)
-           , labelSelectable := True
-           ]
+            [ widgetTooltipText := Just (format comps)
+            , labelSelectable := True
+            ]
 
          -- Кнопка редактирования адреса
          editButton <- buttonNew
@@ -373,6 +365,48 @@ drawNotMatched b containerID model = do
                 boxPackStart hbox pairedLabel PackNatural 0
             boxPackEndDefaults vbox hbox -- добавляю hbox в конец vbox
          tableAttach table vbox 1 2 (i*2+1) (i*2+2) [Fill] [Fill] 0 6
+
+
+
+drawMatched :: Builder -> [(Parsed, Parsed)] -> IO ()
+drawMatched b model = do
+
+   table <- tableNew (length model) 2 False -- строк, столбцов, homogeneous
+   tableSetRowSpacings table 7
+   tableSetColSpacings table 40
+
+   genLabel (meta "Из фотографий") >>= addCell table 0 0
+   genLabel (meta "Из таблицы"  )  >>= addCell table 1 0
+
+   if null model
+   then genLabel (italicMeta "Пусто") >>= addCell table 0 0
+   else let model' = sortBy ( \ ((Parsed (Address x _ _) _), _)
+                                ((Parsed (Address y _ _) _), _)
+                              -> x `compare` y
+                            ) model
+        in zip [1..] model' `forM_` \ (i, (photo, note)) -> do
+           -- Линия-разделитель
+           separator <- hSeparatorNew
+           tableAttach table separator 0 3 (2*i) (2*i+1) [Fill] [] 0 0
+           -- Строка адреса без пары
+           addCell' table 0 (i*2+1) photo
+           addCell' table 1 (i*2+1) note
+
+   -- Подставляю таблицу в контейнер и показываю результат
+   alignment <- builderGetObject b castToAlignment "matched"
+   destroyChildren alignment
+   containerAdd alignment table
+   widgetShowAll table
+
+   where addCell' :: Table -> Int -> Int -> Parsed -> IO ()
+         addCell' table x y (Parsed (Address string _ _) (Right comps)) = do
+            label <- labelNew (Just string)
+            miscSetAlignment label 0 0.5
+            set label
+               [ widgetTooltipText := Just (format comps)
+               , labelSelectable := True
+               ]
+            addCell table x y label
 
 
 

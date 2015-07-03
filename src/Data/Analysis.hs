@@ -3,7 +3,7 @@ module Data.Analysis where
 
 
 import Text.EditDistance
-import Data.List (find, deleteFirstsBy, sortBy, (\\), nub, nubBy)
+import Data.List (find, deleteFirstsBy, sortBy, nubBy)
 import Data.Maybe (fromJust)
 import Data.Either (rights)
 import Data.Char (toLower)
@@ -59,9 +59,12 @@ pattern `searchIn` testing = minimum $ distance pattern' `map` testing'
 
 
 
--- Количество адресов с парой
-matchedCount :: [Parsed] -> [Parsed] -> Int
-matchedCount xs ys = Set.size $ toSet xs `Set.intersection` toSet ys
+matched :: [Parsed] -> [Parsed] -> [(Parsed, Parsed)]
+matched xs ys = [ (x, y)
+                | x <- nubBy sameAddr xs
+                , y <- ys
+                , x `sameAddr` y
+                ]
 
 
 
