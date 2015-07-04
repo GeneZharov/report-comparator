@@ -2,6 +2,7 @@ module Main.Body where
 
 
 
+import Data.Char (toLower)
 import Data.Maybe (isNothing, fromJust)
 import Control.Exception
 import Data.List (sortBy)
@@ -48,7 +49,7 @@ compareReports b = do
    else do
       let sheetName' = fromJust sheetName
           photosDir' = getFileName photosDir
-          notesFile'  = getFileName notesFile
+          notesFile' = getFileName notesFile
       photos <- try $ fromPhotos dirMode photosDir'
       notes  <- try $ fromNotes sheetName' (colNum-1) notesFile'
       case (photos, notes) of
@@ -64,7 +65,7 @@ compareReports b = do
       parse :: [Address] -> [Parsed]
       parse as = [ Parsed a c
                  | a@(Address s _ _) <- as
-                 , let c = parseAddr s
+                 , let c = parseAddr (toLower `map` s)
                  ]
 
       report :: Builder -> IOError -> IO ()
