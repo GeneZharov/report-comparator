@@ -31,16 +31,16 @@ compareReports b = do
    notesColumn   <- builderGetObject b castToSpinButton "notesColumn"
    notesSheets   <- builderGetObject b castToComboBox "notesSheets"
 
-   --photosDir <- fileChooserGetFilename photos
-   --notesFile <- fileChooserGetFilename notes
-   --dirMode   <- liftM (== 0) (comboBoxGetActive photosDirMode)
-   --sheetName <- comboBoxGetActiveText notesSheets
-   --colNum    <- spinButtonGetValueAsInt notesColumn
-   let photosDir = Just "/_reports/friso-test"
-       notesFile = Just "/_reports/2014.09.15.xls"
-       sheetName = Just "ФРИСОЛАК"
-       dirMode   = False
-       colNum    = 3
+   photosDir <- fileChooserGetFilename photos
+   notesFile <- fileChooserGetFilename notes
+   dirMode   <- liftM (== 0) (comboBoxGetActive photosDirMode)
+   sheetName <- comboBoxGetActiveText notesSheets
+   colNum    <- spinButtonGetValueAsInt notesColumn
+   --let photosDir = Just "/_reports/friso-test"
+   --    notesFile = Just "/_reports/2014.09.15.xls"
+   --    sheetName = Just "ФРИСОЛАК"
+   --    dirMode   = False
+   --    colNum    = 3
 
    if any isNothing [photosDir, notesFile, sheetName]
    then do
