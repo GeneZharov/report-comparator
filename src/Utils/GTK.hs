@@ -45,11 +45,11 @@ getFileName = decode . pack . fromJust
    -- хак для извлечения текста.
 
 
+meta :: String -> String
 meta text =
-   "<span fgcolor=\"#6D6D6D\" \
-   \>" ++ text ++ "</span>"
+   "<span fgcolor=\"#6D6D6D\">" ++ text ++ "</span>"
 
 
+italicMeta :: String -> String
 italicMeta text =
-   "<span fgcolor=\"#6D6D6D\" style=\"italic\" \
-   \>" ++ text ++ "</span>"
+   "<span fgcolor=\"#6D6D6D\" style=\"italic\">" ++ text ++ "</span>"

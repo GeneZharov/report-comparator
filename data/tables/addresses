@@ -15,10 +15,10 @@ import re
 from xlrd import open_workbook
 
 
-#filename = sys.argv[1]
-#sheet = sys.argv[2]
-filename = '/_reports/2014.09.15.xls'
-sheet = 'ФРИСОЛАК'
+filename = sys.argv[1]
+sheet = sys.argv[2]
+#filename = '/_reports/2014.09.15.xls'
+#sheet = 'ФРИСОЛАК'
 
 
 result = []

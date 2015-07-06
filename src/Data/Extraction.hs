@@ -80,7 +80,7 @@ fromNotes sheet col file = do
 genPhotosPreview :: FilePath -> IO String
 genPhotosPreview dir = do
    model <- modelDir dir
-   let (lastLevel, _) = model !! (maxLines - 1)
+   let (lastLevel, _) = model !! ((length model - 1) `min` (maxLines - 1))
    return $ drawDir ( take maxLines model ++ [(lastLevel, "...")] )
    where maxLines = 20
 

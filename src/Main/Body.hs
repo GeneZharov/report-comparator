@@ -33,7 +33,7 @@ compareReports b = do
 
    photosDir <- fileChooserGetFilename photos
    notesFile <- fileChooserGetFilename notes
-   dirMode   <- liftM (== 0) (comboBoxGetActive photosDirMode)
+   dirMode   <- liftM (== 1) (comboBoxGetActive photosDirMode)
    sheetName <- comboBoxGetActiveText notesSheets
    colNum    <- spinButtonGetValueAsInt notesColumn
    --let photosDir = Just "/_reports/friso-test"
@@ -131,10 +131,10 @@ draw b photos notes = do
 drawStat :: Builder -> String -> Int -> Int -> Int -> Int -> IO ()
 drawStat b containerID total duplicates notParsed notMatched =
    let stat = zip [0..]
+            . (:) ( total, "— всего" )
             . filter ( (>0) . fst )
             . sortBy (flip (comparing fst))
-            $ [ ( total      , "— всего" )
-              , ( duplicates , "— дубликаты" )
+            $ [ ( duplicates , "— дубликаты" )
               , ( notParsed  , "— непонятны" )
               , ( notMatched , "— без пары" )
               ]
@@ -268,7 +268,11 @@ drawNotMatched b containerID model = do
 
    -- Генерю строки с адресами, которым не нашлось пары
    if null model
-   then genLabel (italicMeta "Пусто") >>= addCell table 0 0
+   then do
+      addSeparator table 1
+      empty <- genLabel (italicMeta "Пусто")
+      miscSetAlignment empty 0 0.5
+      addCell table 0 3 empty
    else let model' = sortBy ( \ ((Parsed (Address x _ _) _), _)
                                 ((Parsed (Address y _ _) _), _)
                               -> x `compare` y
@@ -304,13 +308,15 @@ drawNotMatched b containerID model = do
                  , options
                  )
               ) = do
-
-         -- Линия-разделитель
-         separator <- hSeparatorNew
-         tableAttach table separator 0 3 (2*i) (2*i+1) [Fill] [] 0 0
-
+         addSeparator table i
          addLeft  table i parsed
          addRight table i options -- похожие адреса
+
+
+      addSeparator :: Table -> Int -> IO ()
+      addSeparator table i = do
+         separator <- hSeparatorNew
+         tableAttach table separator 0 3 (2*i) (2*i+1) [Fill] [] 0 0
 
 
       addLeft :: Table -> Int -> Parsed -> IO ()
@@ -380,18 +386,17 @@ drawMatched b model = do
    genLabel (meta "Из таблицы"  )  >>= addCell table 1 0
 
    if null model
-   then genLabel (italicMeta "Пусто") >>= addCell table 0 0
+   then do
+      addSeparator table 1
+      empty <- genLabel (italicMeta "Пусто")
+      miscSetAlignment empty 0 0.5
+      addCell table 0 3 empty
    else let model' = sortBy ( \ ((Parsed (Address x _ _) _), _)
                                 ((Parsed (Address y _ _) _), _)
                               -> x `compare` y
                             ) model
         in zip [1..] model' `forM_` \ (i, (photo, note)) -> do
-           -- Линия-разделитель
-           separator <- hSeparatorNew
-           tableAttach table separator 0 3 (2*i) (2*i+1) [Fill] [] 0 0
-           -- Строка адреса без пары
-           addCell' table 0 (i*2+1) photo
-           addCell' table 1 (i*2+1) note
+           addLine table 1 photo note
 
    -- Подставляю таблицу в контейнер и показываю результат
    alignment <- builderGetObject b castToAlignment "matched"
@@ -399,15 +404,28 @@ drawMatched b model = do
    containerAdd alignment table
    widgetShowAll table
 
-   where addCell' :: Table -> Int -> Int -> Parsed -> IO ()
-         addCell' table x y (Parsed (Address string _ _) (Right comps)) = do
-            label <- labelNew (Just string)
-            miscSetAlignment label 0 0.5
-            set label
-               [ widgetTooltipText := Just (format comps)
-               , labelSelectable := True
-               ]
-            addCell table x y label
+   where
+
+      addLine :: Table -> Int -> Parsed -> Parsed -> IO ()
+      addLine table i left right = do
+         addSeparator table (i*2)
+         addCell' table 0 (i*2+1) left
+         addCell' table 1 (i*2+1) right
+
+      addSeparator :: Table -> Int -> IO ()
+      addSeparator table i = do
+         separator <- hSeparatorNew
+         tableAttach table separator 0 3 (2*i) (2*i+1) [Fill] [] 0 0
+
+      addCell' :: Table -> Int -> Int -> Parsed -> IO ()
+      addCell' table x y (Parsed (Address string _ _) (Right comps)) = do
+         label <- labelNew (Just string)
+         miscSetAlignment label 0 0.5
+         set label
+            [ widgetTooltipText := Just (format comps)
+            , labelSelectable := True
+            ]
+         addCell table x y label
 
 
 
