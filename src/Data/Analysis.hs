@@ -94,7 +94,7 @@ notMatched ::
       Either
          ErrMsg -- почему не удалось найти альтернативы
          [(
-             String -- один из адресов второй группы
+             Parsed -- один из адресов второй группы
           ,  Int    -- степень соответствия адресу первой группы
           ,  Bool   -- есть ли уже у этого адреса пара из первой группы
          )]
@@ -113,10 +113,10 @@ notMatched xs ys =
             Nothing   -> Left "В адресе нет названия дороги!"
             Just road -> Right $
                sortBy (\ (_,x,_) (_,y,_) -> y `compare` x)
-                      [ (string, fit, matched)
+                      [ (p', fit, matched)
                       | let road' = getRoad road
                             max   = maxDistance road'
-                      , Parsed (Address string origin context) comps <- ys
+                      , p'@(Parsed (Address string _ _) comps) <- ys
                       , let fit = road' `icSearchIn` string
                       , fit < max
                       , let matched = either (const False)

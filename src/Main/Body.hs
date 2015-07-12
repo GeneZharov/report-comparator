@@ -251,7 +251,7 @@ drawDuplicates b containerID model = do
 -- виджета, в который вставлять результат.
 drawNotMatched :: Builder -> String
                -> [( Parsed
-                  ,  Either ErrMsg [(String, Int, Bool)]
+                  ,  Either ErrMsg [(Parsed, Int, Bool)]
                   )]
                -> IO ()
 drawNotMatched b containerID model = do
@@ -296,7 +296,7 @@ drawNotMatched b containerID model = do
       addLine :: Table
               -> ( Int
                  ,  ( Parsed
-                    , Either ErrMsg [(String, Int, Bool)]
+                    , Either ErrMsg [(Parsed, Int, Bool)]
                     )
                  )
               -> IO ()
@@ -349,7 +349,7 @@ drawNotMatched b containerID model = do
          addCell table 0 (i*2+1) vbox
 
 
-      addRight :: Table -> Int -> Either ErrMsg [(String, Int, Bool)] -> IO ()
+      addRight :: Table -> Int -> Either ErrMsg [(Parsed, Int, Bool)] -> IO ()
       addRight table i (Left err) = do
          errorLabel <- genLabel (italicMeta err)
          labelSetSelectable errorLabel True
@@ -357,12 +357,11 @@ drawNotMatched b containerID model = do
          addCell table 1 (i*2+1) errorLabel
       addRight table i (Right options) = do
          vbox <- vBoxNew True 13 -- homogeneous, spacing
-         forM_ options $ \ (addr, fit, matched) -> do
+         forM_ options $ \ (parsed, fit, matched) -> do
             -- Создаю одну из альтернатив
             hbox <- hBoxNew False 7
             boxSetHomogeneous hbox False
-            alt <- genLabel addr
-            labelSetSelectable alt True
+            alt <- genAltLabel parsed
             miscSetAlignment alt 0 0.5
             boxPackStart hbox alt PackNatural 0
             when matched $ do
@@ -370,6 +369,18 @@ drawNotMatched b containerID model = do
                 boxPackStart hbox pairedLabel PackNatural 0
             boxPackEndDefaults vbox hbox -- добавляю hbox в конец vbox
          tableAttach table vbox 1 2 (i*2+1) (i*2+2) [Fill] [Fill] 0 6
+
+
+      genAltLabel :: Parsed -> IO Label
+      genAltLabel (Parsed (Address string _ _) comps) = do
+         let tooltip = case comps of
+                          Left parseErr -> show parseErr
+                          Right comps'  -> format comps'
+         alt <- genLabel string
+         set alt [ widgetTooltipText := Just tooltip
+                 , labelSelectable   := True
+                 ]
+         return alt
 
 
 
