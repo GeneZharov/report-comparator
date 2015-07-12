@@ -13,10 +13,16 @@ prepareGUI :: Builder -> IO ()
 prepareGUI b = do
 
    -- Цвет фона для вкладок
+   let c = 62000 -- 65535 — максимум
    forM_ [ "photosVP", "notesVP", "matchedVP" ]
        $ \ id -> do
-            let c = 62000 -- 65535 — максимум
             vp <- builderGetObject b castToViewport id
+            -- TODO: В Windows фон по умолчанию ярче, поэтому цвет получается 
+            -- похожим на дефолтный. Пытался считать дефолтный, чтобы увеличить 
+            -- его на константу, но почему-то в Windows и Unix цвет считывается 
+            -- одинаковый, хотя визуально они явно различаются.
+            --style <- get vp widgetStyle
+            --print =<< styleGetBackground style StateNormal
             widgetModifyBg vp StateNormal (Color c c c)
 
    -- Dirmode по умолчанию

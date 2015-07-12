@@ -48,7 +48,7 @@ compareReports b = do
       let sheetName' = fromJust sheetName
           photosDir' = decodeFileName (fromJust photosDir)
           notesFile' = decodeFileName (fromJust notesFile)
-          --photosDir'  = "/_reports/aqua"
+          --photosDir'  = "/root/r/t/zdrav/aqua"
           --notesFile'  = "/_reports/empty.xlsx"
       photos <- try $ fromPhotos dirMode photosDir'
       notes  <- try $ fromNotes sheetName' (colNum-1) notesFile'
@@ -456,7 +456,9 @@ editAddress b (Parsed (Address string origin context) parsed) = do
 
    -- Dialog
    d <- dialogNew
-   set d [ windowTitle := "Редактирование адреса" ]
+   set d [ windowTitle := "Редактирование адреса"
+         , windowDefaultWidth := 700
+         ]
    containerSetBorderWidth d 10
 
    -- Кнопки
