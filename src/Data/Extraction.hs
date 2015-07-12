@@ -66,7 +66,7 @@ fromPhotos dirMode dir = do
 fromNotes :: String -> Int -> FilePath -> IO [Address]
 fromNotes sheet col file = do
    pyFile <- getDataFileName "tables/addresses"
-   pyOut  <- pythonStdout $ proc "python" [pyFile, file, sheet]
+   pyOut <- pythonStdout $ proc "python" [pyFile, file, sheet]
    return [ Address name (Notes file sheet col row) ctx
           | (row, line) <- [0..] `zip` splitOn "\0\n" pyOut
           , let names = lines line :: [String]
@@ -96,4 +96,4 @@ genNotesPreview sheet file = do
                        ctx   = intercalate " | " names
                  ]
    return $ unlines (take maxLines preview ++ ["..."])
-   where maxLines = 10
+   where maxLines = 1000

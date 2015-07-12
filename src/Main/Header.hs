@@ -8,6 +8,8 @@ import Control.Exception
 import System.Process (proc)
 import Graphics.UI.Gtk
 import Graphics.UI.Gtk.Builder
+import System.IO.Error (catchIOError)
+import Data.Maybe (fromJust)
 
 import Utils.GTK
 import Utils.PythonStdout
@@ -19,51 +21,64 @@ import Data.Extraction
 updateSheets :: Builder -> IO ()
 updateSheets b = do
 
-   py   <- getDataFileName "tables/sheet-names"
    file <- builderGetObject b castToFileChooserButton "notes"
-       >>= liftM getFileName . fileChooserGetFilename
-   try (pythonStdout (proc "python" [py, file])) >>= update file
+       >>= liftM (decodeFileName . fromJust) . fileChooserGetFilename
+
+   f <- fileChooserGetFilename
+      =<< builderGetObject b castToFileChooserButton "notes"
+   case f of
+      Nothing -> clearMenu b -- в windows меню становится пустым при закрытии dialog window
+      Just f' -> do
+         let f'' = decodeFileName f'
+         py <- getDataFileName "tables/sheet-names"
+         update f'' =<< try ( pythonStdout (proc "python" [py, f'']) )
 
    where
       update :: String -> Either IOError String -> IO ()
 
-      update file (Left parseErr) = do
+      update file (Left parseErr) =
+         report b $ "Не удалось открыть электронную таблицу:\n" ++ file
+                 ++ "\n\n" ++ show parseErr
 
-         -- Очищаю меню табличного отчёта
-         mainWindow <- builderGetObject b castToWindow "mainWindow"
-         notes <- builderGetObject b castToFileChooserButton "notes"
-         fileChooserUnselectAll notes
-
-         -- Очищаю меню страниц табличного отчёта
-         notesSheets <- builderGetObject b castToComboBox "notesSheets"
-         comboBoxSetModelText notesSheets
-
-         alert mainWindow $
-            "Не удалось открыть электронную таблицу:\n" ++ file
-            ++ "\n\n" ++ show parseErr
+      update _ (Right []) =
+         report b "В таблице не найдено ни одной страницы"
 
       update _ (Right sheetNames) = do
-
          -- Наполняю combobox с названиями страниц новым содержимым
          notesSheets <- builderGetObject b castToComboBox "notesSheets"
          comboBoxSetModelText notesSheets
          forM_ (lines sheetNames)
              $ \ sheet -> comboBoxAppendText notesSheets sheet
-
          -- Первый пункт меню — активный
          set notesSheets [comboBoxActive := 0]
+
+      report :: Builder -> String -> IO ()
+      report b msg = clearMenu b >> alert b msg
+
+      clearMenu :: Builder -> IO ()
+      clearMenu b = do
+         -- Очищаю меню табличного отчёта
+         mainWindow <- builderGetObject b castToWindow "mainWindow"
+         notes <- builderGetObject b castToFileChooserButton "notes"
+         fileChooserUnselectAll notes
+         -- Очищаю меню страниц табличного отчёта
+         notesSheets <- builderGetObject b castToComboBox "notesSheets"
+         comboBoxSetModelText notesSheets >> return ()
 
 
 
 updatePhotosPreview :: Builder -> IO ()
 updatePhotosPreview b = do
 
-   photos         <- builderGetObject b castToFileChooserButton "photos"
-   photosPreview  <- builderGetObject b castToImage "photosPreview"
+   photos        <- builderGetObject b castToFileChooserButton "photos"
+   photosPreview <- builderGetObject b castToImage "photosPreview"
 
-   Just photosDir <- fileChooserGetFilename photos
-   tooltip        <- genPhotosPreview photosDir
+   photosDir <- (decodeFileName . fromJust)
+                `liftM` fileChooserGetFilename photos
+   tooltip   <- genPhotosPreview photosDir
+
    set photosPreview [widgetTooltipText := Just tooltip]
+      `catchIOError` \ err -> alert b (show err)
 
 
 
@@ -74,8 +89,13 @@ updateNotesPreview b = do
    notesSheets  <- builderGetObject b castToComboBox "notesSheets"
    notesPreview <- builderGetObject b castToImage "notesPreview"
 
-   Just notesFile <- fileChooserGetFilename notes
-   Just sheetName <- comboBoxGetActiveText notesSheets
+   notesFile    <- (decodeFileName . fromJust)
+                   `liftM` fileChooserGetFilename notes
+   sheetName    <- comboBoxGetActiveText notesSheets
 
-   tooltip <- genNotesPreview sheetName notesFile
-   set notesPreview [widgetTooltipText := Just tooltip]
+   case sheetName of
+      Nothing -> return ()
+      Just sheetName' -> do
+         tooltip <- genNotesPreview sheetName' notesFile
+         set notesPreview [widgetTooltipText := Just tooltip]
+            `catchIOError` \ err -> alert b (show err)

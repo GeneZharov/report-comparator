@@ -30,12 +30,12 @@ setupHandlers b = do
 
    -- Обновление меню страниц таблицы
    notes <- builderGetObject b castToFileChooserButton "notes"
-   afterCurrentFolderChanged notes (updateSheets b)
+   after notes currentFolderChanged (updateSheets b)
 
    -- Обновление preview
    photos      <- builderGetObject b castToFileChooserButton "photos"
    notesSheets <- builderGetObject b castToComboBox "notesSheets"
-   afterCurrentFolderChanged photos (updatePhotosPreview b)
+   after photos currentFolderChanged (updatePhotosPreview b)
    after notesSheets changed (updateNotesPreview b)
 
    -- Клик по "Сравнить"

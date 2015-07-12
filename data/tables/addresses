@@ -21,8 +21,6 @@ sheet = sys.argv[2]
 #sheet = 'ФРИСОЛАК'
 
 
-result = []
-
 book = open_workbook(filename)
 sheet = book.sheet_by_name(sheet)
 for i in range(sheet.nrows):

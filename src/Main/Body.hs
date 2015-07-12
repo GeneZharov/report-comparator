@@ -36,29 +36,29 @@ compareReports b = do
    dirMode   <- liftM (== 1) (comboBoxGetActive photosDirMode)
    sheetName <- comboBoxGetActiveText notesSheets
    colNum    <- spinButtonGetValueAsInt notesColumn
-   --let photosDir = Just "/_reports/friso-test"
-   --    notesFile = Just "/_reports/2014.09.15.xls"
-   --    sheetName = Just "ФРИСОЛАК"
+   --let sheetName = Just "Лист1"
    --    dirMode   = False
    --    colNum    = 3
+   --    photosDir = Just undefined
+   --    notesFile = Just undefined
 
    if any isNothing [photosDir, notesFile, sheetName]
-   then do
-      mainWindow <- builderGetObject b castToWindow "mainWindow"
-      alert mainWindow "Заданы не все данные"
+   then alert b "Заданы не все данные"
    else do
       let sheetName' = fromJust sheetName
-          photosDir' = getFileName photosDir
-          notesFile' = getFileName notesFile
+          photosDir' = decodeFileName (fromJust photosDir)
+          notesFile' = decodeFileName (fromJust notesFile)
+          --photosDir'  = "/_reports/aqua"
+          --notesFile'  = "/_reports/empty.xlsx"
       photos <- try $ fromPhotos dirMode photosDir'
       notes  <- try $ fromNotes sheetName' (colNum-1) notesFile'
       case (photos, notes) of
          (Left err, _) -> report b err
          (_, Left err) -> report b err
-         (Right photos', Right notes') -> do
+         (Right photos', Right notes') ->
             draw b (parse photos') (parse notes')
                -- `catch` \ (e :: SomeException)
-               --        -> alert mainWindow (show e)
+               --        -> alert b (show e)
 
    where
 
@@ -69,9 +69,7 @@ compareReports b = do
                  ]
 
       report :: Builder -> IOError -> IO ()
-      report b err = do
-         mainWindow <- builderGetObject b castToWindow "mainWindow"
-         alert mainWindow (show err)
+      report b err = alert b (show err)
 
 
 
@@ -118,13 +116,12 @@ draw b photos notes = do
 
    when (length bothMatched == 0) $ do
       mainWindow <- builderGetObject b castToWindow "mainWindow"
-      alert mainWindow
-         "Нет ни одного совпадения адресов.\n\n\
-         \Возможно отчёты полностью отличаются \
-         \или из них неверно извлечены адреса:\n\n\
-         \• Возможно адреса в таблице лежат в другой колонке;\n\n\
-         \• Возможно надо воспользоваться переключателем типа файлов, из \
-         \которых извлекаются адреса фотоотчёта;"
+      alert b "Нет ни одного совпадения адресов.\n\n\
+              \Возможно отчёты полностью отличаются \
+              \или из них неверно извлечены адреса:\n\n\
+              \• Возможно адреса в таблице лежат в другой колонке;\n\n\
+              \• Возможно надо воспользоваться переключателем типа файлов, из \
+              \которых извлекаются адреса фотоотчёта;"
 
 
 
@@ -166,11 +163,13 @@ drawNotParsed b containerID model = do
                               -> x `compare` y
                             ) model
         in forM_ ([0..] `zip` model')
-           $ \ (i, parsed@(Parsed (Address string _ _) _)) -> do
+           $ \ (i, parsed@(Parsed (Address string _ _) (Left parseErr))) -> do
 
               -- Строка адреса
               label <- genLabel string
-              labelSetSelectable label True
+              set label [ widgetTooltipText := Just (show parseErr)
+                        , labelSelectable   := True
+                        ]
               miscSetAlignment label 0 0.5
               addCell table 1 i label
               --genLabel "Error not implemented" >>= addCell table 1 i
@@ -228,10 +227,9 @@ drawDuplicates b containerID model = do
 
          -- Ячейка с текстом адреса
          srcLabel <- genLabel string
-         set srcLabel [
-             widgetTooltipText := Just (format comps)
-           , labelSelectable := True
-           ]
+         set srcLabel [ widgetTooltipText := Just (format comps)
+                      , labelSelectable   := True
+                      ]
          miscSetAlignment srcLabel 0 0.5
          addCell table 0 dupNumber srcLabel
 
@@ -396,7 +394,7 @@ drawMatched b model = do
                               -> x `compare` y
                             ) model
         in zip [1..] model' `forM_` \ (i, (photo, note)) -> do
-           addLine table 1 photo note
+           addLine table i photo note
 
    -- Подставляю таблицу в контейнер и показываю результат
    alignment <- builderGetObject b castToAlignment "matched"
@@ -415,7 +413,7 @@ drawMatched b model = do
       addSeparator :: Table -> Int -> IO ()
       addSeparator table i = do
          separator <- hSeparatorNew
-         tableAttach table separator 0 3 (2*i) (2*i+1) [Fill] [] 0 0
+         tableAttach table separator 0 3 i (i+1) [Fill] [] 0 0
 
       addCell' :: Table -> Int -> Int -> Parsed -> IO ()
       addCell' table x y (Parsed (Address string _ _) (Right comps)) = do

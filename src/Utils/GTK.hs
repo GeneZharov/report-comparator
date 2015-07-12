@@ -7,10 +7,12 @@ import Codec.Binary.UTF8.Light (decode)
 import Data.ByteString.Char8 (pack)
 
 
--- Создаёт попап с сообщением об ошибке
-alert :: Window -> String -> IO ()
-alert parentWin msg = do
-   dialog <- messageDialogNew (Just parentWin) [] MessageError ButtonsOk msg
+-- Создаёт попап в главном окне с сообщением об ошибке
+alert :: Builder -> String -> IO ()
+alert b msg = do
+   mainWindow <- builderGetObject b castToWindow "mainWindow"
+   dialog     <- messageDialogNew (Just mainWindow) []
+                                  MessageError ButtonsOk msg
    set dialog [windowTitle := "Ошибка" ]
    onResponse dialog $ const (widgetHide dialog) -- сокрытие по "Ok"
    widgetShow dialog
@@ -37,12 +39,12 @@ destroyChildren container =
    containerGetChildren container >>= mapM_ widgetDestroy
 
 
-getFileName :: Maybe FilePath -> String
-getFileName = decode . pack . fromJust
+decodeFileName :: FilePath -> String
+decodeFileName = decode . pack
    -- dev-haskell/gtk-0.12.4 имеет проблему кодировки при получении имени файла 
    -- из GtkFileChooserButton. Похоже, что она использует UTF-8 вместо 
-   -- встроенной в хаскель юникодной кодировки. Поэтому использую специальный 
-   -- хак для извлечения текста.
+   -- встроенной в хаскель юникодной кодировки. Поэтому использую хак для 
+   -- извлечения текста.
 
 
 meta :: String -> String

@@ -27,5 +27,7 @@
 
 
 С правами обычного пользователя:
+   │ Запускать надо из cygwin или git bash (mingw32),
+   │ так как process-1.2.3.0 требует для сборки configure
    git clone https://github.com/kahless/report-comparator
    bin\install.bat
