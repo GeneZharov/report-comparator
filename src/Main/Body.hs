@@ -2,8 +2,6 @@ module Main.Body where
 
 
 
-import Data.Char (toLower)
-import Data.Maybe (isNothing, fromJust)
 import Control.Exception
 import Data.List (sortBy)
 import Data.Ord (comparing)
@@ -11,65 +9,25 @@ import Graphics.UI.Gtk.Builder
 import Graphics.UI.Gtk
 import Control.Monad
 import System.FilePath (replaceBaseName)
-import System.Directory (renameFile, removeFile)
+import System.Directory (renameFile, removeFile, doesFileExist)
 
-import Address.Main (parseAddr)
 import Utils.Addr
 import Utils.GTK
+import Utils.Misc (isLeft)
 import Data.Types
 import Data.Extraction
 import Data.Analysis
+import Main.Header (obtainPhotos, obtainNotes)
 
 
 
 compareReports :: Builder -> IO ()
 compareReports b = do
-
-   photos        <- builderGetObject b castToFileChooserButton "photos"
-   notes         <- builderGetObject b castToFileChooserButton "notes"
-   photosDirMode <- builderGetObject b castToComboBox "photosDirMode"
-   notesColumn   <- builderGetObject b castToSpinButton "notesColumn"
-   notesSheets   <- builderGetObject b castToComboBox "notesSheets"
-
-   photosDir <- fileChooserGetFilename photos
-   notesFile <- fileChooserGetFilename notes
-   dirMode   <- liftM (== 1) (comboBoxGetActive photosDirMode)
-   sheetName <- comboBoxGetActiveText notesSheets
-   colNum    <- spinButtonGetValueAsInt notesColumn
-   --let sheetName = Just "Лист1"
-   --    dirMode   = False
-   --    colNum    = 3
-   --    photosDir = Just undefined
-   --    notesFile = Just undefined
-
-   if any isNothing [photosDir, notesFile, sheetName]
-   then alert b "Заданы не все данные"
-   else do
-      let sheetName' = fromJust sheetName
-          photosDir' = decodeFileName (fromJust photosDir)
-          notesFile' = decodeFileName (fromJust notesFile)
-          --photosDir'  = "/root/r/t/zdrav/aqua"
-          --notesFile'  = "/_reports/empty.xlsx"
-      photos <- try $ fromPhotos dirMode photosDir'
-      notes  <- try $ fromNotes sheetName' (colNum-1) notesFile'
-      case (photos, notes) of
-         (Left err, _) -> report b err
-         (_, Left err) -> report b err
-         (Right photos', Right notes') ->
-            draw b (parse photos') (parse notes')
-               -- `catch` \ (e :: SomeException)
-               --        -> alert b (show e)
-
-   where
-
-      parse :: [Address] -> [Parsed]
-      parse as = [ Parsed a c
-                 | a@(Address s _ _) <- as
-                 , let c = parseAddr (toLower `map` s)
-                 ]
-
-      report :: Builder -> IOError -> IO ()
-      report b err = alert b (show err)
+   photos <- obtainPhotos b
+   notes  <- obtainNotes b
+   case (photos, notes) of
+      (Just photos', Just notes') -> draw b photos' notes'
+      (_           , _          ) -> return ()
 
 
 
@@ -286,9 +244,6 @@ drawNotMatched b containerID model = do
    where
 
 
-      isLeft (Left _)     = True
-      isLeft (Right _)    = False
-
       fromLeft (Left x)   = x
       fromRight (Right x) = x
 
@@ -463,13 +418,13 @@ editAddress b (Parsed (Address string origin context) parsed) = do
 
    -- Кнопки
    saveButton <- dialogAddButton d "Сохранить" ResponseAccept
-   dialogAddButton d "Отмена"    ResponseCancel
-   --dialogAddButton d "Удалить"   ResponseReject
+   dialogAddButton d "Отмена" ResponseCancel
+   --dialogAddButton d "Удалить" ResponseReject
    dialogSetDefaultResponse d ResponseAccept
    case origin of
       -- TODO: Костыль, пока не реализовано редактирование таблицы
-      Photos _      -> return ()
-      Notes _ _ _ _ -> do
+      PhotoOrigin _      -> return ()
+      NoteOrigin  _ _ _ _ -> do
          widgetSetSensitive saveButton False
          set saveButton [ widgetTooltipText := Just "Не реализовано" ]
 
@@ -515,10 +470,15 @@ editAddress b (Parsed (Address string origin context) parsed) = do
          newAddr <- entryGetText addressValue
          when (newAddr /= string)
             $ case origin of
-                 Notes file sheet col row -> undefined
-                 Photos file -> do
-                    renameFile file (replaceBaseName file newAddr)
-                    compareReports b
+                 NoteOrigin  file sheet col row -> undefined
+                 PhotoOrigin file -> do
+                    let newFile = replaceBaseName file newAddr
+                    exists <- doesFileExist newFile
+                    if exists
+                    then alert b ("Файл уже существует:\n" ++ newFile)
+                    else do
+                       renameFile file newFile
+                       compareReports b
       -- ResponseReject -> removeFile file
          -- TODO: пока удалить адрес нельзя из соображений безопасности
       _ -> return ()

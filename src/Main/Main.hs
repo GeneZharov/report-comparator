@@ -5,6 +5,8 @@ import Control.Monad (forM_)
 
 import Main.Header
 import Main.Body
+import Main.EditAll
+import Data.Types
 
 
 
@@ -44,6 +46,10 @@ setupHandlers b = do
    after photos currentFolderChanged (updatePhotosPreview b)
    after notesSheets changed (updateNotesPreview b)
 
+   -- Клик по "editAll"
+   editAllPhotos <- builderGetObject b castToButton "editAllPhotos"
+   on editAllPhotos buttonActivated (editAll b Photo)
+
    -- Клик по "Сравнить"
    submit <- builderGetObject b castToButton "submit"
    on submit buttonActivated (compareReports b) >> return ()
@@ -64,4 +70,5 @@ main = do
    setupHandlers b
 
    widgetShow mainWindow
+   --editAll b Photo -- FIXME: временно для разработки
    mainGUI

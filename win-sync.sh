@@ -6,8 +6,8 @@
 #
 # Не кладу скрипт в bin, так как он не сможет сам себя перетереть.
 
-unix=/e/p/zd/a-comp         # Юниксовый каталог проекта
-win=$(dirname $BASH_SOURCE) # Виндовый каталог проекта
+unix=/cygdrive/e/p/zd/a-comp # Юниксовый каталог проекта
+win=$(dirname $BASH_SOURCE)  # Виндовый каталог проекта
 
 # Копируемые файлы
 files=( bin
@@ -17,8 +17,10 @@ files=( bin
         report-comparator.cabal
       )
 
-rm -r "${files[@]/#/$win/}"
-cp -r "${files[@]/#/$unix/}" $win
-#rsync -rt --delete "${files[@]/#/$unix/}" $win # rsync нет в гите
+#rm -r "${files[@]/#/$win/}"
+#cp -r "${files[@]/#/$unix/}" $win
+rsync -rt --delete "${files[@]/#/$unix/}" $win
+  # rsync лучше, так как из-за меньшего количества правок, быстрее 
+  # перекомпилируется, но rsync нет в гитовом терминале.
 
 read -n 1 -p "Press any key..."

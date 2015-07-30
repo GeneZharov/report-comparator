@@ -10,7 +10,7 @@ import Data.Char (toLower)
 import qualified Data.Set as Set
 
 import Data.Types
-import Utils.Misc (combine)
+import Utils.Misc (combine, isLeft)
 import Address.Types (Component, isRoad, getRoad)
 
 
@@ -80,8 +80,6 @@ duplicates = map (\ xs@(x:_) -> (x, length xs)) -- считаю дубликат
 -- Формирует список не распарсенных адресов в группе
 notParsed :: [Parsed] -> [Parsed]
 notParsed = filter (isLeft . parsedComps)
-   where isLeft (Left _) = True
-         isLeft _ = False
 
 
 

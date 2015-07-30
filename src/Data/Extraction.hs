@@ -33,6 +33,7 @@ fromPhotos dirMode dir = do
                | name <- dirContents
                , name /= "."
                , name /= ".."
+               , name /= "Thumbs.db"
                , let file = dir ++ "/" ++ name
                ]
 
@@ -45,17 +46,17 @@ fromPhotos dirMode dir = do
            -- Если в каталоге нет ни одного подкаталога,
            -- значит имя каталога содержит искомый адрес.
            let name = takeFileName dir
-           in return [ Address name (Photos dir) dir ]
+           in return [ Address name (PhotoOrigin dir) dir ]
         else
            -- Если в каталоге нет ни одного подкаталога, значит адреса 
            -- содержатся в непосредственном содержимом каталога.
-           return [ Address name (Photos file) file
+           return [ Address name (PhotoOrigin file) file
                   | file <- files
                   , let name = cropCopy (takeBaseName file)
                   ]
 
    where cropCopy name = name'
-            where (name', _, _) = name =~ " \\([[:digit:]]+\\)\
+            where (name', _, _) = name =~ " ?\\([[:digit:]]+\\)\
                                          \| - Copy \\([[:digit:]]+\\)\
                                          \| - Копия \\([[:digit:]]+\\)"
                                          :: (String, String, String)
@@ -67,7 +68,7 @@ fromNotes :: String -> Int -> FilePath -> IO [Address]
 fromNotes sheet col file = do
    pyFile <- getDataFileName "tables/addresses"
    pyOut <- pythonStdout $ proc "python" [pyFile, file, sheet]
-   return [ Address name (Notes file sheet col row) ctx
+   return [ Address name (NoteOrigin file sheet col row) ctx
           | (row, line) <- [0..] `zip` splitOn "\0\n" pyOut
           , let names = lines line :: [String]
           , col < length names

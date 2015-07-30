@@ -36,7 +36,7 @@
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="n_rows">2</property>
-                    <property name="n_columns">4</property>
+                    <property name="n_columns">5</property>
                     <property name="column_spacing">5</property>
                     <property name="row_spacing">10</property>
                     <child>
@@ -175,6 +175,40 @@
                         <property name="right_attach">2</property>
                         <property name="top_attach">1</property>
                         <property name="bottom_attach">2</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkButton" id="editAllPhotos">
+                        <property name="label">gtk-edit</property>
+                        <property name="width_request">60</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="receives_default">True</property>
+                        <property name="use_stock">True</property>
+                      </object>
+                      <packing>
+                        <property name="left_attach">4</property>
+                        <property name="right_attach">5</property>
+                        <property name="x_options">GTK_FILL</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkButton" id="editAllNotes">
+                        <property name="label">gtk-edit</property>
+                        <property name="width_request">60</property>
+                        <property name="visible">True</property>
+                        <property name="sensitive">False</property>
+                        <property name="can_focus">True</property>
+                        <property name="receives_default">True</property>
+                        <property name="tooltip_text" translatable="yes">Не реализовано</property>
+                        <property name="use_stock">True</property>
+                      </object>
+                      <packing>
+                        <property name="left_attach">4</property>
+                        <property name="right_attach">5</property>
+                        <property name="top_attach">1</property>
+                        <property name="bottom_attach">2</property>
+                        <property name="x_options">GTK_FILL</property>
                       </packing>
                     </child>
                   </object>
@@ -341,6 +375,12 @@
                         <child>
                           <placeholder/>
                         </child>
+                        <child>
+                          <placeholder/>
+                        </child>
+                        <child>
+                          <placeholder/>
+                        </child>
                       </object>
                       <packing>
                         <property name="expand">True</property>
@@ -393,6 +433,12 @@
                         <property name="can_focus">False</property>
                         <property name="n_columns">2</property>
                         <property name="column_spacing">5</property>
+                        <child>
+                          <placeholder/>
+                        </child>
+                        <child>
+                          <placeholder/>
+                        </child>
                         <child>
                           <placeholder/>
                         </child>

@@ -9,10 +9,13 @@ import System.Process (proc)
 import Graphics.UI.Gtk
 import Graphics.UI.Gtk.Builder
 import System.IO.Error (catchIOError)
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, isNothing)
+import Data.Char (toLower)
 
+import Address.Main (parseAddr)
 import Utils.GTK
 import Utils.PythonStdout
+import Data.Types
 import Data.Extraction
 
 
@@ -99,3 +102,68 @@ updateNotesPreview b = do
          tooltip <- genNotesPreview sheetName' notesFile
          set notesPreview [widgetTooltipText := Just tooltip]
             `catchIOError` \ err -> alert b (show err)
+
+
+
+obtainPhotos :: Builder -> IO (Maybe [Parsed])
+obtainPhotos b = do
+
+   photos        <- builderGetObject b castToFileChooserButton "photos"
+   photosDirMode <- builderGetObject b castToComboBox "photosDirMode"
+
+   --photosDir <- fileChooserGetFilename photos
+   let photosDir = Just undefined
+   dirMode   <- (== 1) `liftM` comboBoxGetActive photosDirMode
+
+   if isNothing photosDir
+   then do
+      alert b "Не задан каталог с фотографиями"
+      return Nothing
+   else do
+      --let photosDir' = decodeFileName (fromJust photosDir)
+      let photosDir'  = "/root/r/t/zd/aqua"
+      photos <- try $ fromPhotos dirMode photosDir'
+      case photos of
+         Left err      -> report b err >> return Nothing
+         Right photos' -> return $ Just (parse photos')
+
+
+
+obtainNotes :: Builder -> IO (Maybe [Parsed])
+obtainNotes b = do
+
+   notes       <- builderGetObject b castToFileChooserButton "notes"
+   notesColumn <- builderGetObject b castToSpinButton "notesColumn"
+   notesSheets <- builderGetObject b castToComboBox "notesSheets"
+
+   --notesFile <- fileChooserGetFilename notes
+   --sheetName <- comboBoxGetActiveText notesSheets
+   --colNum    <- spinButtonGetValueAsInt notesColumn
+   let sheetName = Just undefined
+       notesFile = Just undefined
+
+   if any isNothing [notesFile, sheetName]
+   then do
+      alert b "Не задана таблица с отчётом или имя страницы в ней"
+      return Nothing
+   else do
+      --let sheetName' = fromJust sheetName
+      --    notesFile' = decodeFileName (fromJust notesFile)
+      let sheetName' = "Лист1"
+          notesFile' = "/root/r/t/zd/aqua.xlsx"
+          colNum     = 3
+      notes <- try $ fromNotes sheetName' (colNum-1) notesFile'
+      case notes of
+         Left err     -> report b err >> return Nothing
+         Right notes' -> return $ Just (parse notes')
+
+
+
+parse :: [Address] -> [Parsed]
+parse as = [ Parsed a c
+           | a@(Address s _ _) <- as
+           , let c = parseAddr (toLower `map` s)
+           ]
+
+report :: Builder -> IOError -> IO ()
+report b err = alert b (show err)
