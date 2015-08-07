@@ -111,8 +111,8 @@ obtainPhotos b = do
    photos        <- builderGetObject b castToFileChooserButton "photos"
    photosDirMode <- builderGetObject b castToComboBox "photosDirMode"
 
-   --photosDir <- fileChooserGetFilename photos
-   let photosDir = Just undefined
+   photosDir <- fileChooserGetFilename photos
+   --let photosDir = Just undefined
    dirMode   <- (== 1) `liftM` comboBoxGetActive photosDirMode
 
    if isNothing photosDir
@@ -120,8 +120,8 @@ obtainPhotos b = do
       alert b "Не задан каталог с фотографиями"
       return Nothing
    else do
-      --let photosDir' = decodeFileName (fromJust photosDir)
-      let photosDir'  = "/root/r/t/zd/aqua"
+      let photosDir' = decodeFileName (fromJust photosDir)
+      --let photosDir'  = "/root/r/t/zd/aqua"
       photos <- try $ fromPhotos dirMode photosDir'
       case photos of
          Left err      -> report b err >> return Nothing
@@ -136,22 +136,22 @@ obtainNotes b = do
    notesColumn <- builderGetObject b castToSpinButton "notesColumn"
    notesSheets <- builderGetObject b castToComboBox "notesSheets"
 
-   --notesFile <- fileChooserGetFilename notes
-   --sheetName <- comboBoxGetActiveText notesSheets
-   --colNum    <- spinButtonGetValueAsInt notesColumn
-   let sheetName = Just undefined
-       notesFile = Just undefined
+   notesFile <- fileChooserGetFilename notes
+   sheetName <- comboBoxGetActiveText notesSheets
+   colNum    <- spinButtonGetValueAsInt notesColumn
+   --let sheetName = Just undefined
+   --    notesFile = Just undefined
 
    if any isNothing [notesFile, sheetName]
    then do
       alert b "Не задана таблица с отчётом или имя страницы в ней"
       return Nothing
    else do
-      --let sheetName' = fromJust sheetName
-      --    notesFile' = decodeFileName (fromJust notesFile)
-      let sheetName' = "Лист1"
-          notesFile' = "/root/r/t/zd/aqua.xlsx"
-          colNum     = 3
+      let sheetName' = fromJust sheetName
+          notesFile' = decodeFileName (fromJust notesFile)
+      --let sheetName' = "Лист1"
+      --    notesFile' = "/root/r/t/zd/aqua.xlsx"
+      --    colNum     = 3
       notes <- try $ fromNotes sheetName' (colNum-1) notesFile'
       case notes of
          Left err     -> report b err >> return Nothing
